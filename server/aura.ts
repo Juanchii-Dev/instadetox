@@ -68,7 +68,7 @@ export const handleChatRequest = async (req: Request, res: Response) => {
 
       // Realizar la petición a la API de OpenAI
       const response = await openai.chat.completions.create({
-        model: "gpt-4o", // El modelo más reciente de OpenAI, publicado en mayo de 2024
+        model: "gpt-4o-mini", // Modelo más ligero que consume menos créditos
         messages: formattedMessages,
         temperature: 0.7,
         max_tokens: 500,
