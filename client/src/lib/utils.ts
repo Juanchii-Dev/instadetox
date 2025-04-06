@@ -43,6 +43,7 @@ export const NAVIGATION_ITEMS = [
   { name: "Mensajes", icon: "message-circle", path: "/mensajes" },
   { name: "Notificaciones", icon: "bell", path: "/notificaciones" },
   { name: "Crear", icon: "plus-circle", path: "/crear" },
+  { name: "AURA", icon: "bot", path: "/aura" },
   { name: "Perfil", icon: "user", path: "/perfil" },
   { name: "Más", icon: "more-horizontal", path: "/mas" }
 ];

@@ -11,6 +11,7 @@ import Notifications from "@/pages/Notifications";
 import Create from "@/pages/Create";
 import Profile from "@/pages/Profile";
 import More from "@/pages/More";
+import Aura from "@/pages/Aura";
 import NotFound from "@/pages/not-found";
 import { useState } from "react";
 
@@ -23,6 +24,7 @@ function AppRoutes() {
       <Route path="/mensajes" component={Messages} />
       <Route path="/notificaciones" component={Notifications} />
       <Route path="/crear" component={Create} />
+      <Route path="/aura" component={Aura} />
       <Route path="/perfil" component={Profile} />
       <Route path="/mas" component={More} />
       <Route component={NotFound} />

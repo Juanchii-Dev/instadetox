@@ -9,7 +9,8 @@ import {
   User, 
   MoreHorizontal,
   Menu,
-  X
+  X,
+  Bot
 } from "lucide-react";
 
 interface MobileNavProps {
@@ -37,6 +38,7 @@ const MobileNav: React.FC<MobileNavProps> = ({ isOpen, onOpen, onClose }) => {
       case 'message-circle': return MessageCircle;
       case 'bell': return Bell;
       case 'plus-circle': return PlusCircle;
+      case 'bot': return Bot;
       case 'user': return User;
       case 'more-horizontal': return MoreHorizontal;
       default: return Home;
