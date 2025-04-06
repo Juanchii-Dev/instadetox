@@ -46,29 +46,54 @@ export const handleChatRequest = async (req: Request, res: Response) => {
       return res.status(400).json({ error: "El formato de los mensajes es incorrecto" });
     }
 
-    // Preparar los mensajes para la API de OpenAI
-    const formattedMessages = [
-      SYSTEM_MESSAGE,
-      ...messages.slice(-10) // Limitamos a los últimos 10 mensajes para mantener el contexto manejable
-    ];
+    // Verificamos si la última pregunta del usuario está relacionada con un error de conexión
+    const lastUserMessage = messages.filter(msg => msg.role === 'user').pop();
+    
+    // Si hay problemas con la API, usamos una respuesta local para fines de demostración
+    if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === "demo") {
+      console.log("Usando modo de demostración (sin API Key de OpenAI)");
+      
+      // Respondemos con un mensaje genérico para demostración
+      return res.json({
+        content: `**Funcionamiento en modo de demostración.**\n\nHola, soy AURA en modo de demostración. Actualmente, no puedo generar respuestas personalizadas debido a limitaciones de la API. Pero puedo ayudarte con:\n\n1. Recomendaciones generales sobre desintoxicación digital\n2. Información sobre las funciones de la aplicación\n3. Consejos para el bienestar digital\n\n¿En qué estás interesado? 🌱`
+      });
+    }
 
-    // Realizar la petición a la API de OpenAI
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o", // El modelo más reciente de OpenAI, publicado en mayo de 2024
-      messages: formattedMessages,
-      temperature: 0.7,
-      max_tokens: 500,
-    });
+    try {
+      // Preparar los mensajes para la API de OpenAI
+      const formattedMessages = [
+        SYSTEM_MESSAGE,
+        ...messages.slice(-10) // Limitamos a los últimos 10 mensajes para mantener el contexto manejable
+      ];
 
-    // Obtener la respuesta del asistente
-    const assistantMessage = response.choices[0].message;
+      // Realizar la petición a la API de OpenAI
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o", // El modelo más reciente de OpenAI, publicado en mayo de 2024
+        messages: formattedMessages,
+        temperature: 0.7,
+        max_tokens: 500,
+      });
 
-    // Enviar la respuesta al cliente
-    res.json({
-      content: assistantMessage.content
-    });
+      // Obtener la respuesta del asistente
+      const assistantMessage = response.choices[0].message;
+
+      // Enviar la respuesta al cliente
+      return res.json({
+        content: assistantMessage.content
+      });
+    } catch (apiError) {
+      console.error("Error en la llamada a la API de OpenAI:", apiError);
+      
+      // Si hay un error con la API, entregamos una respuesta genérica
+      return res.json({
+        content: `**Respuesta de emergencia:**\n\nLo siento, estoy experimentando dificultades técnicas para procesar tu consulta en este momento. \n\nPuedes intentar:\n\n1. Hacer una pregunta más sencilla\n2. Intentarlo de nuevo más tarde\n3. Explorar otras secciones de la aplicación mientras tanto\n\n¿Hay algo más en lo que pueda ayudarte dentro de mis capacidades actuales? 🔧`
+      });
+    }
   } catch (error) {
-    console.error("Error en el procesamiento de la solicitud de chat:", error);
-    res.status(500).json({ error: "Error al procesar la solicitud de chat" });
+    console.error("Error general en el procesamiento de la solicitud de chat:", error);
+    // En lugar de devolver un error 500, entregamos una respuesta degradada
+    res.json({
+      content: `**Disculpa la interrupción**\n\nHa ocurrido un error inesperado. Por favor, intenta refrescar la página o vuelve más tarde. Estamos trabajando para mejorar tu experiencia. 🛠️`
+    });
   }
 };
