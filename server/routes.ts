@@ -102,6 +102,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(500).json({ error: "Could not create like" });
     }
 
+    // 2.1 Update likes_count in posts table (M12 SSOT consistency)
+    const { error: rpcErr } = await req.userSupabase!.rpc('increment_likes_count', { p_post_id: postId });
+    if (rpcErr) {
+      // Fallback: Increment directly if RPC is missing
+      const { data: currPost } = await req.userSupabase!.from("posts").select("likes_count").eq("id", postId).single();
+      if (currPost) {
+        await req.userSupabase!.from("posts").update({ likes_count: (currPost.likes_count || 0) + 1 }).eq("id", postId);
+      }
+    }
+
     // 3. Create Notification if it's not our own post
     if (post.user_id !== userId) {
       await supabaseAdmin.from("notifications").insert({
@@ -132,6 +142,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     if (likeErr) {
       return res.status(500).json({ error: "Could not remove like" });
+    }
+
+    // Sync likes_count
+    const { error: rpcErr2 } = await req.userSupabase!.rpc('decrement_likes_count', { p_post_id: postId });
+    if (rpcErr2) {
+      const { data: currPost } = await req.userSupabase!.from("posts").select("likes_count").eq("id", postId).single();
+      if (currPost) {
+        await req.userSupabase!.from("posts").update({ likes_count: Math.max(0, (currPost.likes_count || 0) - 1) }).eq("id", postId);
+      }
     }
 
     return res.json({ success: true });

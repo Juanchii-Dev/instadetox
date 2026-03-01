@@ -468,6 +468,13 @@ const Home = () => {
       if (error) {
         await loadFeed();
         toast({ title: "Error", description: "No se pudo quitar el like." });
+      } else if (supabase) {
+        // M12: Sincronizar contador en tabla base (SSOT)
+        const { error: rpcErr } = await supabase.rpc('decrement_likes_count', { p_post_id: post.id });
+        if (rpcErr) {
+          // Fallback si RPC no existe o falla
+          await supabase.from("posts").update({ likes_count: Math.max(0, post.likes_count - 1) }).eq("id", post.id);
+        }
       }
       return;
     }
@@ -478,6 +485,13 @@ const Home = () => {
     if (error) {
       await loadFeed();
       toast({ title: "Error", description: "No se pudo dar like." });
+    } else if (supabase) {
+      // M12: Sincronizar contador en tabla base (SSOT)
+      const { error: rpcErr } = await supabase.rpc('increment_likes_count', { p_post_id: post.id });
+      if (rpcErr) {
+        // Fallback si RPC no existe o falla
+        await supabase.from("posts").update({ likes_count: post.likes_count + 1 }).eq("id", post.id);
+      }
     }
   };
 
