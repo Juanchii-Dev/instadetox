@@ -81,11 +81,11 @@ export const stripLeadingMention = (value: string, username: string) => {
   return value.replace(pattern, "");
 };
 
-export const createClientCommentId = () => {
+export const generateUUID = () => {
   const c = globalThis.crypto;
   if (c?.randomUUID) return c.randomUUID();
   if (!c?.getRandomValues) {
-    throw new Error("No se pudo generar un ID de comentario seguro en cliente.");
+    throw new Error("No se pudo generar un ID seguro.");
   }
   const bytes = new Uint8Array(16);
   c.getRandomValues(bytes);
@@ -94,6 +94,8 @@ export const createClientCommentId = () => {
   const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 };
+
+export const createClientCommentId = generateUUID;
 
 export const getOptimizedImageUrl = (url: string | null, width?: number, quality = 80): string => {
   if (!url) return "";

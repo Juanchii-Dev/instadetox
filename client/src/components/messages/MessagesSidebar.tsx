@@ -1,8 +1,8 @@
-import { type InboxConversation } from "@/hooks/useMessagesInbox";
+import { type Conversation } from "@/hooks/useMessagesInbox";
 
 interface MessagesSidebarProps {
   username: string;
-  conversations: InboxConversation[];
+  conversations: Conversation[];
   selectedConversationId: string | null;
   unreadByConversation: Record<string, number>;
   requestConversationIds: string[];
@@ -57,12 +57,12 @@ const MessagesSidebar = ({
     const term = searchValue.trim().toLowerCase();
     if (!term) return true;
     return (
-      conversation.title.toLowerCase().includes(term) ||
-      conversation.preview.toLowerCase().includes(term)
+      (conversation.title?.toLowerCase().includes(term) ?? false) ||
+      (conversation.preview?.toLowerCase().includes(term) ?? false)
     );
   });
 
-  const sortByRecentActivity = (a: InboxConversation, b: InboxConversation) => {
+  const sortByRecentActivity = (a: Conversation, b: Conversation) => {
     const aTime = new Date(a.previewAt ?? a.updatedAt).getTime();
     const bTime = new Date(b.previewAt ?? b.updatedAt).getTime();
     return bTime - aTime;
@@ -208,7 +208,7 @@ const MessagesSidebar = ({
                   </div>
                   <div className="ig-dm-conversation-body">
                     <div className="ig-dm-conversation-title-row">
-                      <span className="ig-dm-conversation-title" title={conversation.title}>
+                      <span className="ig-dm-conversation-title" title={conversation.title || undefined}>
                         {conversation.title}
                       </span>
                     </div>
@@ -260,7 +260,7 @@ const MessagesSidebar = ({
                           <div className="ig-dm-conversation-title-row">
                             <span 
                               className="ig-dm-conversation-title is-unread" 
-                              title={conversation.title}
+                              title={conversation.title || undefined}
                             >
                               {conversation.title}
                             </span>
@@ -319,7 +319,7 @@ const MessagesSidebar = ({
                       <div className="ig-dm-conversation-title-row">
                         <span 
                           className={`ig-dm-conversation-title${(unreadByConversation[conversation.id] ?? 0) > 0 ? " is-unread" : ""}`} 
-                          title={conversation.title}
+                          title={conversation.title || undefined}
                         >
                           {conversation.title}
                         </span>

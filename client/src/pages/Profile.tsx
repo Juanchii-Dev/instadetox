@@ -25,12 +25,13 @@ import {
 } from "@/hooks/useProfileTabsState";
 import { setPostRouteSnapshot } from "@/lib/postRouteCache";
 import {
-  createClientCommentId,
   formatCompact,
-  formatRelativeTime,
+  getOptimizedImageUrl,
   isVideoUrl,
+  createClientCommentId,
+  formatRelativeTime,
   parseMediaList,
-  stripLeadingMention,
+  stripLeadingMention
 } from "@/lib/profileUtils";
 import ProfileHeaderSection from "@/components/profile/ProfileHeaderSection";
 import ProfilePageState from "@/components/profile/ProfilePageState";

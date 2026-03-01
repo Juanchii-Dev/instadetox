@@ -19,6 +19,7 @@ import MobileStatsPage from "@/pages/MobileStatsPage";
 import NotFound from "@/pages/not-found";
 import { useState } from "react";
 import { AuthProvider, useAuth } from "@/lib/AuthContext";
+import { MessagesProvider } from "@/lib/MessagesContext";
 import SplashScreen from "@/components/ui/SplashScreen";
 import { useOutboxRetry } from "@/hooks/useOutboxRetry";
 
@@ -65,13 +66,22 @@ function AppRoutes() {
 }
 
 function AppShell() {
+  const { user, loading } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [location] = useLocation();
   const isStandaloneRoute = location === "/privacidad";
   const isMessagesRoute = location.startsWith("/direct/inbox") || location.startsWith("/direct/t/");
 
+  if (loading) {
+    return <SplashScreen />;
+  }
+
+  if (!user) {
+    return <AppRoutes />;
+  }
+
   return (
-    <>
+    <MessagesProvider userId={user.id}>
       <Background />
       <div className="flex flex-col min-h-screen">
         <div className="flex flex-1 overflow-hidden">
@@ -95,7 +105,7 @@ function AppShell() {
         {!isStandaloneRoute ? <MobileBottomNav /> : null}
       </div>
       <Toaster />
-    </>
+    </MessagesProvider>
   );
 }
 

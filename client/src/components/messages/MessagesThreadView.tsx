@@ -1,10 +1,10 @@
 import React, { useRef, useState, useEffect, useCallback } from "react";
 import { Link } from "wouter";
-import { type InboxConversation, type InboxMessage, type ReplyToPayload } from "@/hooks/useMessagesInbox";
+import { type Conversation, type InboxMessage, type ReplyToPayload } from "@/hooks/useMessagesInbox";
 
 interface MessagesThreadViewProps {
   currentUserId: string | null;
-  selectedConversation: InboxConversation;
+  selectedConversation: Conversation;
   messages: InboxMessage[];
   loadingMessages: boolean;
   hasMoreMessages: boolean;
@@ -205,7 +205,7 @@ const MessagesThreadView = ({
             className="ig-dm-avatar-44"
           />
           <div className="ig-dm-thread-head-info">
-            <strong>{selectedConversation.title}</strong>
+            <strong>{selectedConversation.title || ""}</strong>
             <span>{selectedConversation.username ? `${selectedConversation.username} · Instadetox` : "Instadetox"}</span>
           </div>
         </div>

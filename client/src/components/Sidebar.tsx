@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { prefetchProfileRouteSnapshot } from "@/lib/profileRouteCache";
 import BrandLogo from "@/components/BrandLogo";
 import { HelpCircle } from "lucide-react";
+import { useInbox } from "@/lib/MessagesContext";
 
 const SIDEBAR_ICON_COLUMN = "w-[62px]";
 
@@ -11,6 +12,10 @@ const Sidebar = () => {
   const { user } = useAuth();
   const [location] = useLocation();
   const profilePath = `/${user?.username ?? "perfil"}`;
+  
+  // Sincronización global de mensajes (Empresa - M12)
+  const { unreadByConversation } = useInbox();
+  const totalUnreadCount = Object.values(unreadByConversation).reduce((acc, count) => acc + count, 0);
 
   const warmOwnProfileRoute = () => {
     const username = (user?.username ?? "").trim().toLowerCase();
@@ -186,7 +191,7 @@ const Sidebar = () => {
             const active = isActive(itemPath);
             
             return (
-              <li key={item.name}>
+                  <li key={item.name}>
                 <Link
                   href={itemPath}
                   onMouseEnter={item.path === "/perfil" ? warmOwnProfileRoute : undefined}
@@ -199,8 +204,13 @@ const Sidebar = () => {
                     active ? "bg-primary/20 text-white" : "text-gray-200 hover:bg-white/10"
                   }`}
                 >
-                  <span className={`${SIDEBAR_ICON_COLUMN} h-12 flex items-center justify-center shrink-0`}>
+                  <span className={`${SIDEBAR_ICON_COLUMN} h-12 flex items-center justify-center shrink-0 relative`}>
                     {renderNavigationIcon(item.icon, item.name, itemPath)}
+                    {item.path === "/direct/inbox" && totalUnreadCount > 0 && (
+                      <span className="absolute top-2 right-4 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white border-2 border-[#121212]">
+                        {totalUnreadCount > 99 ? "99+" : totalUnreadCount}
+                      </span>
+                    )}
                   </span>
                   <span className={labelVisibilityClasses}>
                     {item.name}

@@ -4,7 +4,8 @@ import MessagesEmptyState from "@/components/messages/MessagesEmptyState";
 import MessagesSidebar from "@/components/messages/MessagesSidebar";
 import MessagesThreadView from "@/components/messages/MessagesThreadView";
 import MessagesNewChatModal from "@/components/messages/MessagesNewChatModal";
-import { useMessagesInbox, type ReplyToPayload } from "@/hooks/useMessagesInbox";
+import { useInbox } from "@/lib/MessagesContext";
+import type { ReplyToPayload } from "@/hooks/useMessagesInbox";
 
 interface PendingFile {
   file: File;
@@ -44,7 +45,7 @@ const Messages = () => {
     unsendMessage,
     searchNewMessageCandidates,
     createOrOpenConversation,
-  } = useMessagesInbox({ userId: user?.id });
+  } = useInbox();
 
   const showMobileThread = Boolean(selectedConversationId);
 

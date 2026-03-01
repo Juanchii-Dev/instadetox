@@ -4,7 +4,7 @@ import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { useLocation } from "wouter";
 import { enqueueMutation } from "@/lib/outbox";
 
-interface ConversationRow {
+export interface ConversationRow {
   id: string;
   title: string | null;
   is_group: boolean;
@@ -23,7 +23,7 @@ export interface ReplyToPayload {
   username?: string | null;
 }
 
-interface MessageRow {
+export interface MessageRow {
   id: string;
   conversation_id: string;
   sender_id: string;
@@ -33,9 +33,9 @@ interface MessageRow {
   payload?: { replyTo?: ReplyToPayload; mediaUrl?: string | null } | null;
 }
 
-export interface InboxConversation {
+export interface Conversation {
   id: string;
-  title: string;
+  title: string | null;
   isGroup: boolean;
   updatedAt: string;
   preview: string | null;
@@ -71,7 +71,7 @@ export interface NewMessageUserSuggestion {
 const PAGE_SIZE = 50;
 
 export const useMessagesInbox = ({ userId }: UseMessagesInboxParams) => {
-  const [conversations, setConversationsState] = useState<InboxConversation[]>(() => {
+  const [conversations, setConversationsState] = useState<Conversation[]>(() => {
     if (typeof window !== "undefined" && userId) {
       const cached = localStorage.getItem(`ig_conversations_${userId}`);
       if (cached) {
@@ -85,7 +85,7 @@ export const useMessagesInbox = ({ userId }: UseMessagesInboxParams) => {
     return [];
   });
 
-  const setConversations = useCallback((conversations: InboxConversation[] | ((prev: InboxConversation[]) => InboxConversation[])) => {
+  const setConversations = useCallback((conversations: Conversation[] | ((prev: Conversation[]) => Conversation[])) => {
     setConversationsState((prev) => {
       const next = typeof conversations === "function" ? conversations(prev) : conversations;
       if (typeof window !== "undefined" && userId) {
@@ -292,7 +292,7 @@ export const useMessagesInbox = ({ userId }: UseMessagesInboxParams) => {
       
       if (abortSignal?.aborted) return;
 
-      const conversationIds = participantRows.map((row) => row.conversation_id);
+      const conversationIds = Array.from(new Set(participantRows.map((row) => row.conversation_id)));
 
       if (conversationIds.length === 0) {
         setConversations([]);
@@ -544,35 +544,57 @@ export const useMessagesInbox = ({ userId }: UseMessagesInboxParams) => {
     [userId],
   );
 
+  const processedMessageIdsRef = useRef<Set<string>>(new Set());
+
   // --- LÓGICA DE ACTUALIZACIÓN UNIVERSAL (SIDEBAR + THREAD) ---
   const handleInboundMessage = useCallback((msg: InboxMessage) => {
-    // 1. Actualización inmediata del preview del Sidebar (0ms feel)
-    // Si hay multimedia, mostrar "Enviaste una foto" independientemente del texto
+    // Deduplicación basada en ID (M12 - Anti-parpadeo)
+    if (processedMessageIdsRef.current.has(msg.id)) return;
+    processedMessageIdsRef.current.add(msg.id);
+    
+    // Limpieza periódica del Set para evitar leaks de memoria
+    if (processedMessageIdsRef.current.size > 200) {
+      const ids = Array.from(processedMessageIdsRef.current);
+      processedMessageIdsRef.current = new Set(ids.slice(100)); // Mantener los últimos 100
+    }
+
+    // 1. Actualización inmediata del preview del Sidebar (Feel 0ms)
     const previewText = msg.mediaUrl ? "Enviaste una foto" : msg.body?.trim();
     moveConversationToTopWithPreview(msg.conversationId, previewText, msg.createdAt);
 
-    // 2. Si el chat está abierto, hidratar el hilo
+    // 2. Actualizar Cache Global (M12 - Persistencia total e inmediata)
+    // Siempre actualizamos el cache, aunque la conversación no esté seleccionada,
+    // para que al entrar al chat el mensaje ya esté renderizado.
+    const currentCached = messagesCacheRef.current[msg.conversationId] ?? [];
+    if (!currentCached.some((m) => m.id === msg.id)) {
+      const nextCache = [...currentCached, msg].sort(
+        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      );
+      messagesCacheRef.current[msg.conversationId] = nextCache;
+      // Persistencia en localStorage si es necesario
+      if (typeof persistMessagesCache === "function") {
+        persistMessagesCache();
+      }
+    }
+
+    // 3. Si el chat está abierto, hidratar el estado activo (UI)
     if (selectedConversationIdRef.current === msg.conversationId) {
       if (msg.senderId !== userId) {
         void markConversationSeen(msg.conversationId);
       }
-      setMessages((prev) => {
-        if (prev.some((m) => m.id === msg.id)) return prev;
-        const next = [...prev, msg].sort(
-          (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-        );
-        messagesCacheRef.current[msg.conversationId] = next;
-        return next;
-      });
-    } else if (msg.senderId !== userId) {
-      // 3. Si no está abierto, incrementar contador de no leídos
+      setMessages(messagesCacheRef.current[msg.conversationId]);
+    }
+
+    // 3. REFRESH MANDATORIO & OPTIMISTIC BADGE (SSOT M12)
+    // Actualizamos localmente para 0ms de respuesta visual
+    if (msg.senderId !== userId && selectedConversationIdRef.current !== msg.conversationId) {
       setUnreadByConversation((prev) => ({
         ...prev,
         [msg.conversationId]: (prev[msg.conversationId] ?? 0) + 1,
       }));
     }
 
-    // 4. Refresco silencioso de la lista completa (Garantía SSOT)
+    // Forzamos una recarga silenciosa de la DB para garantizar consistencia final
     void loadConversations({ silent: true });
   }, [loadConversations, markConversationSeen, moveConversationToTopWithPreview, userId]);
 
@@ -797,28 +819,15 @@ export const useMessagesInbox = ({ userId }: UseMessagesInboxParams) => {
         mediaUrl: row.media_url || row.payload?.mediaUrl || null,
       }));
 
-      // Fusionar mensajes de DB con mensajes locales pendientes
-      // Los mensajes locales (sending/sent) que no estén en la DB deben preservarse
+      // Fusión Inteligente (M12 - Anti Race Condition)
+      // Combinamos lo que viene de la DB con lo que ya tenemos en cache (RT / Optimista)
       const currentCache = messagesCacheRef.current[conversation_id] ?? [];
-      const localMessages = currentCache.filter(
-        (m) => m.senderId === userId && m.deliveryState !== "failed"
-      );
-      
-      // Crear mapa de mensajes de DB por ID para evitar duplicados
-      const dbMessageIds = new Set(dbMessages.map((m) => m.id));
-      
-      // Filtrar mensajes locales que NO estén ya en la DB (evitar duplicados)
-      const pendingLocalMessages = localMessages.filter(
-        (m) => !dbMessageIds.has(m.id)
-      );
-      
-      // Combinar: DB messages + pending local messages
-      const merged = [...dbMessages, ...pendingLocalMessages].sort(
-        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-      );
+      const merged = mergeMessagesById([...dbMessages, ...currentCache]);
 
       messagesCacheRef.current[conversation_id] = merged;
-      persistMessagesCache(); // Guardar inmediatamente
+      if (typeof persistMessagesCache === "function") {
+        persistMessagesCache();
+      }
       setMessages(merged);
       setHasMoreMessages(dbMessages.length >= PAGE_SIZE);
 
@@ -903,9 +912,9 @@ export const useMessagesInbox = ({ userId }: UseMessagesInboxParams) => {
       const currentHilo = messagesCacheRef.current[selectedConversationId] ?? [];
       messagesCacheRef.current[selectedConversationId] = [...currentHilo, message];
       persistMessagesCache(); // Guardar inmediatamente en localStorage
-      // Si hay multimedia, mostrar "Enviaste una foto" independientemente del texto
-      const previewText = pendingFiles && pendingFiles.length > 0 ? "Enviaste una foto" : trimmed;
-      moveConversationToTopWithPreview(selectedConversationId, previewText, now);
+      // Si hay multimedia, mostrar "Enviaste una foto" para paridad con Instagram
+      const previewAt = pendingFiles && pendingFiles.length > 0 ? "Enviaste una foto" : trimmed;
+      moveConversationToTopWithPreview(selectedConversationId, previewAt, now);
 
       // 3. Persistencia y Broadcast en Segundo Plano
       void (async () => {
@@ -1103,20 +1112,26 @@ export const useMessagesInbox = ({ userId }: UseMessagesInboxParams) => {
       setPeerTyping(false);
       return;
     }
+
+    // 1. Limpiar/Resetear estado unreads localmente
     setUnreadByConversation((prev) => {
       if (!prev[selectedConversationId]) return prev;
       return { ...prev, [selectedConversationId]: 0 };
     });
     
+    // 2. Hidratación Atómica (M12 - Anti-leak de conversaciones previas)
+    // Sincronizamos el estado de mensajes con el cache INMEDIATAMENTE
+    const cachedMessages = messagesCacheRef.current[selectedConversationId] ?? [];
+    setMessages(cachedMessages);
+    
+    // 3. Carga en segundo plano (SSOT)
     const controller = new AbortController();
-    const cachedMessages = messagesCacheRef.current[selectedConversationId];
-    if (cachedMessages && cachedMessages.length > 0) {
-      setMessages(cachedMessages);
-      void loadMessages(selectedConversationId, { silent: true, abortSignal: controller.signal });
-      void loadPeerSeenAt(selectedConversationId);
-      return () => controller.abort();
-    }
-    void loadMessages(selectedConversationId, { abortSignal: controller.signal });
+    const isSilent = cachedMessages.length > 0;
+    
+    void loadMessages(selectedConversationId, { 
+      silent: isSilent, 
+      abortSignal: controller.signal 
+    });
     void loadPeerSeenAt(selectedConversationId);
     
     return () => controller.abort();
@@ -1139,14 +1154,36 @@ export const useMessagesInbox = ({ userId }: UseMessagesInboxParams) => {
     // Recibe mensajes de CUALQUIER conversación
     const globalChannel = client.channel(`inbox:${userId}`);
 
-    globalChannel.on("broadcast", { event: "new_message" }, ({ payload }) => {
+    const handleMessageEvent = (payload: RealtimePostgresChangesPayload<MessageRow>) => {
+      if (payload.eventType === "INSERT") {
+        const row = payload.new as MessageRow;
+        const msg: InboxMessage = {
+          id: row.id,
+          conversationId: row.conversation_id,
+          senderId: row.sender_id,
+          body: row.body,
+          createdAt: row.created_at,
+          deliveryState: "sent",
+          mediaUrl: (row.payload as any)?.mediaUrl ?? (row as any).media_url ?? null,
+          replyTo: (row.payload as any)?.replyTo ?? undefined
+        };
+        handleInboundMessage(msg);
+      } else {
+        void loadConversations({ silent: true });
+        if (selectedConversationIdRef.current === (payload.old as MessageRow)?.conversation_id) {
+          void loadMessages(selectedConversationIdRef.current!, { silent: true });
+        }
+      }
+    };
+
+    globalChannel.on("broadcast", { event: "new_message" }, ({ payload }: { payload: any }) => {
       const msg = payload as InboxMessage | null;
       if (msg && msg.id && msg.conversationId) {
         handleInboundMessage(msg);
       }
     });
 
-    globalChannel.on("broadcast", { event: "delete_message" }, ({ payload }) => {
+    globalChannel.on("broadcast", { event: "delete_message" }, ({ payload }: { payload: any }) => {
       const { messageId, conversationId } = payload || {};
       if (!messageId || !conversationId) return;
 
@@ -1158,29 +1195,6 @@ export const useMessagesInbox = ({ userId }: UseMessagesInboxParams) => {
       }
       void loadConversations({ silent: true });
     });
-
-    globalChannel.subscribe();
-
-    const handleMessageEvent = (payload: RealtimePostgresChangesPayload<MessageRow>) => {
-      if (payload.eventType === "INSERT") {
-        const row = payload.new;
-        const msg: InboxMessage = {
-          id: row.id!,
-          conversationId: row.conversation_id!,
-          senderId: row.sender_id!,
-          body: row.body!,
-          createdAt: row.created_at!,
-          deliveryState: "sent",
-          mediaUrl: row.payload?.mediaUrl ?? null
-        };
-        handleInboundMessage(msg);
-      } else {
-        void loadConversations({ silent: true });
-        if (selectedConversationIdRef.current === (payload.old as MessageRow)?.conversation_id) {
-          void loadMessages(selectedConversationIdRef.current!, { silent: true });
-        }
-      }
-    };
 
     globalChannel.on("postgres_changes", { event: "*", schema: "public", table: "messages" }, handleMessageEvent);
     globalChannel.on(
@@ -1196,7 +1210,7 @@ export const useMessagesInbox = ({ userId }: UseMessagesInboxParams) => {
     globalChannel.on(
       "postgres_changes",
       { event: "*", schema: "public", table: "conversation_reads" },
-      (payload) => {
+      (payload: RealtimePostgresChangesPayload<any>) => {
         const row = payload.eventType === "DELETE" ? payload.old : payload.new;
         const rawConversationId = row?.conversation_id;
         if (typeof rawConversationId !== "string") return;
@@ -1212,6 +1226,15 @@ export const useMessagesInbox = ({ userId }: UseMessagesInboxParams) => {
         }
       },
     );
+
+    globalChannel.subscribe((status: string) => {
+      if (status === "SUBSCRIBED") {
+        console.log("Canal Global (Inbox): SUBSCRIBED");
+      }
+      if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+        console.error("Error en Canal Global:", status);
+      }
+    });
 
     return () => {
       if (globalChannel) void client.removeChannel(globalChannel);
