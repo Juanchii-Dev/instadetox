@@ -66,7 +66,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // -- APP ROUTES --
-  app.post("/api/posts/:id/like", requireAuth, async (req: AuthenticatedRequest, res) => {
+
+  // Importamos los limitadores específicos si fuera necesario, 
+  // pero ya están definidos globalmente o se pueden pasar desde app.
+  // Para ser explícitos en routes.ts bajo M12:
+  const socialLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000,
+    max: 20,
+    message: { error: "Acción social bloqueada por límite de frecuencia." }
+  });
+
+  app.post("/api/posts/:id/like", requireAuth, socialLimiter, async (req: AuthenticatedRequest, res) => {
     const userId = req.user!.id;
     const postId = req.params.id;
 
@@ -128,7 +138,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // POST /api/posts/:id/comment
-  app.post("/api/posts/:id/comment", requireAuth, async (req: AuthenticatedRequest, res) => {
+  app.post("/api/posts/:id/comment", requireAuth, socialLimiter, async (req: AuthenticatedRequest, res) => {
     const userId = req.user!.id;
     const postId = req.params.id;
 
@@ -187,7 +197,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // POST /api/users/:id/follow
-  app.post("/api/users/:id/follow", requireAuth, async (req: AuthenticatedRequest, res) => {
+  app.post("/api/users/:id/follow", requireAuth, socialLimiter, async (req: AuthenticatedRequest, res) => {
     const userId = req.user!.id;
     const targetId = req.params.id;
 

@@ -109,7 +109,7 @@ export const useProfilePostRouteBootstrap = <TPost extends ProfileRoutePost, TPr
 
       const { data: postRow } = await client
         .from("feed_posts")
-        .select("id, user_id, username, full_name, avatar_url, title, caption, media_url, mentions, likes_count, comments_count, comments_enabled, created_at")
+        .select("id, user_id, username, full_name, avatar_url, title, caption, media_url, likes_count, comments_count, created_at")
         .eq("id", routePostId)
         .maybeSingle();
 
@@ -127,10 +127,10 @@ export const useProfilePostRouteBootstrap = <TPost extends ProfileRoutePost, TPr
         title: (postRow.title as string | null) ?? null,
         caption: (postRow.caption as string) ?? "",
         media_url: (postRow.media_url as string | null) ?? null,
-        mentions: (postRow.mentions as string[] | null) ?? null,
+        mentions: null, // M12: Campo no presente en vista feed_posts
         likes_count: (postRow.likes_count as number) ?? 0,
         comments_count: (postRow.comments_count as number) ?? 0,
-        comments_enabled: ((postRow.comments_enabled as boolean | null) ?? true),
+        comments_enabled: true, // M12: Default ya que no está en la vista
         created_at: (postRow.created_at as string) ?? new Date().toISOString(),
       } as TPost;
       const ownerId = postRow.user_id as string;

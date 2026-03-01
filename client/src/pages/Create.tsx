@@ -46,6 +46,21 @@ interface MentionSuggestion {
 const POSTS_MEDIA_BUCKET = (import.meta.env.VITE_SUPABASE_POSTS_BUCKET as string | undefined)?.trim() || "post-media";
 const MAX_MEDIA_PER_POST = 10;
 
+/**
+ * M12: Generador de UUID con fallback para contextos no seguros (HTTP/Red Local).
+ * crypto.randomUUID requiere HTTPS. Este helper garantiza paridad funcional.
+ */
+const safeRandomUUID = () => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
 const parseMediaList = (mediaUrl: string | null): string[] => {
   if (!mediaUrl) return [];
   const raw = mediaUrl.trim();
@@ -405,7 +420,7 @@ const Create = () => {
       if (isNetworkError && user) {
         // M12: Persistir en Outbox para evitar pérdida de contenido
         await enqueueMutation({
-          id: crypto.randomUUID(),
+          id: safeRandomUUID(),
           userId: user.id,
           type: 'post',
           payload: {
@@ -486,7 +501,7 @@ const Create = () => {
 
         const ext = file.name.includes(".") ? file.name.split(".").pop() : undefined;
         const safeExt = ext && /^[a-zA-Z0-9]+$/.test(ext) ? ext.toLowerCase() : isImage ? "jpg" : "mp4";
-        const filePath = `${user.id}/${Date.now()}-${index}-${crypto.randomUUID()}.${safeExt}`;
+        const filePath = `${user.id}/${Date.now()}-${index}-${safeRandomUUID()}.${safeExt}`;
 
         const { error: uploadError } = await supabase.storage.from(POSTS_MEDIA_BUCKET).upload(filePath, file, {
           cacheControl: "3600",
@@ -544,7 +559,7 @@ const Create = () => {
     if (!supabase || !user?.id) return null;
     setIsUploadingCover(true);
     try {
-      const filePath = `${user.id}/covers/${Date.now()}-${crypto.randomUUID()}.jpg`;
+      const filePath = `${user.id}/covers/${Date.now()}-${safeRandomUUID()}.jpg`;
       const { error: uploadError } = await supabase.storage.from(POSTS_MEDIA_BUCKET).upload(filePath, blob, {
         cacheControl: "3600",
         upsert: false,

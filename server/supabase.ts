@@ -3,6 +3,7 @@ import type { Request, Response, NextFunction } from "express";
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
+import { log } from "./logger";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -45,14 +46,15 @@ export const requireAuth = async (req: AuthenticatedRequest, res: Response, next
 
     const token = authHeader.replace("Bearer ", "");
 
-    // Validamos el JWT contra Supabase
+    // Validamos el JWT contra Supabase (Uso de auth.getUser para validación del lado del servidor)
     const {
       data: { user },
       error,
     } = await supabaseAdmin.auth.getUser(token);
 
     if (error || !user) {
-      return res.status(401).json({ error: "Unauthorized / Invalid Token" });
+      log(`Auth failed: ${error?.message || "Invalid user"}`, "warn", "auth");
+      return res.status(401).json({ error: "No autorizado. Token inválido o expirado." });
     }
 
     // Inyectamos el usuario en la request

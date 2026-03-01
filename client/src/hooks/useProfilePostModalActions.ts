@@ -56,6 +56,8 @@ interface UseProfilePostModalActionsParams<TPost extends ProfilePostPatchable> {
   reportCommentSubmittingReason: string | null;
   isOwnProfile: boolean;
   profileUsername: string | null | undefined;
+  modalCommentBusy: boolean;
+  setModalCommentBusy: Dispatch<SetStateAction<boolean>>;
   setModalLikeBusy: Dispatch<SetStateAction<boolean>>;
   setModalLikedByMe: Dispatch<SetStateAction<boolean>>;
   setModalSaveBusy: Dispatch<SetStateAction<boolean>>;
@@ -95,6 +97,8 @@ export const useProfilePostModalActions = <TPost extends ProfilePostPatchable>({
   reportCommentSubmittingReason,
   isOwnProfile,
   profileUsername,
+  modalCommentBusy,
+  setModalCommentBusy,
   setModalLikeBusy,
   setModalLikedByMe,
   setModalSaveBusy,
@@ -213,7 +217,7 @@ export const useProfilePostModalActions = <TPost extends ProfilePostPatchable>({
   }, [modalCommentInputRef]);
 
   const handleModalSubmitComment = useCallback(async () => {
-    if (!supabase || !user?.id || !modalPost) return;
+    if (!supabase || !user?.id || !modalPost || modalCommentBusy) return;
     const content = modalCommentInput.trim();
     if (!content) return;
     if (modalPost.comments_enabled === false) {
@@ -235,6 +239,8 @@ export const useProfilePostModalActions = <TPost extends ProfilePostPatchable>({
       toast({ title: "Comentarios desactivados", description: "Esta publicación no acepta comentarios." });
       return;
     }
+
+    setModalCommentBusy(true);
 
     let clientCommentId = "";
     try {
@@ -328,14 +334,17 @@ export const useProfilePostModalActions = <TPost extends ProfilePostPatchable>({
       }));
     }
     setModalReplyTarget(null);
+    setModalCommentBusy(false);
   }, [
     createClientCommentId,
     dedupeAndSortModalComments,
+    modalCommentBusy,
     modalCommentInput,
     modalPost,
     modalReplyTarget,
     patchPostAcrossTabs,
     setForcedVisibleReplyIdsByParent,
+    setModalCommentBusy,
     setModalCommentInput,
     setModalCommentsByPost,
     setModalReplyTarget,

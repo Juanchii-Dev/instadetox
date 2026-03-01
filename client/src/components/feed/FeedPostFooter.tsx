@@ -2,6 +2,7 @@
 import { Link } from "wouter";
 import MentionText from "@/components/ui/mention-text";
 import { compactCount } from "@/components/feed/feedPostUtils";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface FeedPostFooterProps {
   username: string | null;
@@ -46,7 +47,16 @@ const FeedPostFooter = ({
                 aria-label="Me gusta"
                 type="button"
               >
-                <Heart className={`w-6 h-6 ${likedByMe ? "fill-red-400" : ""}`} />
+                <AnimatePresence mode="popLayout">
+                  <motion.div
+                    key={likedByMe ? "liked" : "unliked"}
+                    initial={{ scale: 0.8 }}
+                    animate={{ scale: likedByMe ? [1, 1.4, 1] : 1 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <Heart className={`w-6 h-6 ${likedByMe ? "fill-red-400" : ""}`} />
+                  </motion.div>
+                </AnimatePresence>
               </button>
               {!hideLikeCount ? (
                 <button

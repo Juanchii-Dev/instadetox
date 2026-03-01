@@ -22,6 +22,26 @@ import { AuthProvider, useAuth } from "@/lib/AuthContext";
 import { MessagesProvider } from "@/lib/MessagesContext";
 import SplashScreen from "@/components/ui/SplashScreen";
 import { useOutboxRetry } from "@/hooks/useOutboxRetry";
+import { FeatureErrorBoundary } from "@/components/ui/feature-error-boundary";
+import { motion, AnimatePresence } from "framer-motion";
+
+const PageTransition = ({ children }: { children: React.ReactNode }) => {
+  const [location] = useLocation();
+  return (
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={location}
+        initial={{ opacity: 0, y: 5 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -5 }}
+        transition={{ duration: 0.2, ease: "easeOut" }}
+        className="h-full w-full"
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
+  );
+};
 
 function AppRoutes() {
   const { user, loading } = useAuth();
@@ -44,10 +64,26 @@ function AppRoutes() {
 
   return (
     <Switch>
-      <Route path="/" component={Home} />
-      <Route path="/inicio" component={Home} />
-      <Route path="/p/:postId" component={Profile} />
-      <Route path="/busqueda" component={Search} />
+      <Route path="/">
+        <FeatureErrorBoundary featureName="Feed">
+          <Home />
+        </FeatureErrorBoundary>
+      </Route>
+      <Route path="/inicio">
+        <FeatureErrorBoundary featureName="Feed">
+          <Home />
+        </FeatureErrorBoundary>
+      </Route>
+      <Route path="/p/:postId">
+        <FeatureErrorBoundary featureName="Post">
+          <Profile />
+        </FeatureErrorBoundary>
+      </Route>
+      <Route path="/busqueda">
+        <FeatureErrorBoundary featureName="Búsqueda">
+          <Search />
+        </FeatureErrorBoundary>
+      </Route>
       <Route path="/direct/inbox" component={Messages} />
       <Route path="/direct/t/:id" component={Messages} />
       <Route path="/notificaciones" component={Notifications} />
@@ -57,9 +93,17 @@ function AppRoutes() {
       <Route path="/privacidad" component={Privacy} />
       <Route path="/accounts/edit/" component={EditProfile} />
       <Route path="/accounts/edit" component={EditProfile} />
-      <Route path="/login" component={Home} />
+      <Route path="/login">
+        <FeatureErrorBoundary featureName="Login Redirect">
+          <Home />
+        </FeatureErrorBoundary>
+      </Route>
       <Route path="/detox" component={MobileStatsPage} />
-      <Route path="/:username" component={Profile} />
+      <Route path="/:username">
+        <FeatureErrorBoundary featureName="Perfil">
+          <Profile />
+        </FeatureErrorBoundary>
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );
@@ -99,7 +143,9 @@ function AppShell() {
                   : "px-3 sm:px-4 md:px-5 lg:px-8 py-4 sm:py-6 md:ml-[78px] pt-16 md:pt-0"
             }`}
           >
-            <AppRoutes />
+            <PageTransition>
+              <AppRoutes />
+            </PageTransition>
           </main>
         </div>
         {!isStandaloneRoute ? <MobileBottomNav /> : null}

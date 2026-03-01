@@ -3,6 +3,8 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { isVideoUrl } from "@/components/feed/feedPostUtils";
 import { getOptimizedImageUrl } from "@/lib/profileUtils";
 import MentionText from "@/components/ui/mention-text";
+import { motion, AnimatePresence } from "framer-motion";
+import { Heart } from "lucide-react";
 
 interface FeedPostMediaProps {
   mediaList: string[];
@@ -13,6 +15,8 @@ interface FeedPostMediaProps {
   isMuted: boolean;
   onToggleMute: () => void;
   caption: string;
+  onDoubleTap?: () => void;
+  likedByMe?: boolean;
 }
 
 const MutedAudioIcon = () => (
@@ -42,8 +46,11 @@ const FeedPostMedia = ({
   isMuted,
   onToggleMute,
   caption,
+  onDoubleTap,
+  likedByMe,
 }: FeedPostMediaProps) => {
   const [aspectByMedia, setAspectByMedia] = useState<Record<string, number>>({});
+  const [showHeart, setShowHeart] = useState(false);
   const activeMedia = mediaList[activeMediaIndex] ?? null;
   const hasCarousel = mediaList.length > 1;
   const showVideo = isVideoUrl(activeMedia);
@@ -53,68 +60,142 @@ const FeedPostMedia = ({
     return Math.max(0.8, Math.min(1.91, raw));
   }, [activeMedia, aspectByMedia]);
 
+  const handleDoubleTap = () => {
+    if (onDoubleTap) {
+      onDoubleTap();
+      setShowHeart(true);
+      setTimeout(() => setShowHeart(false), 1000);
+    }
+  };
+
+  const getDotScale = (index: number) => {
+    const distance = Math.abs(index - activeMediaIndex);
+    if (distance === 0) return 1;
+    if (distance === 1) return 0.8;
+    return 0.6;
+  };
+
+  const [[page, direction], setPage] = useState([activeMediaIndex, 0]);
+
+  useMemo(() => {
+    if (activeMediaIndex !== page) {
+      const dir = activeMediaIndex > page ? 1 : -1;
+      setPage([activeMediaIndex, dir]);
+    }
+  }, [activeMediaIndex, page]);
+
+  const variants = {
+    enter: (direction: number) => ({
+      x: direction > 0 ? 50 : -50,
+      opacity: 0,
+    }),
+    center: {
+      zIndex: 1,
+      x: 0,
+      opacity: 1,
+    },
+    exit: (direction: number) => ({
+      zIndex: 0,
+      x: direction < 0 ? 50 : -50,
+      opacity: 0,
+    }),
+  };
+
   return (
-    <div className="ig-post-media-shell">
+    <div className="ig-post-media-shell select-none" onDoubleClick={handleDoubleTap}>
       <div className="ig-post-media-frame" style={{ aspectRatio: `${resolvedAspect}` }}>
-        {activeMedia ? (
-          showVideo ? (
-            <>
-              <video
-                src={activeMedia}
-                className="absolute inset-0 w-full h-full object-contain"
-                autoPlay
-                muted={isMuted}
-                loop
-                playsInline
-                preload="metadata"
-                controls={false}
-                onLoadedMetadata={(event) => {
-                  if (!activeMedia) return;
-                  const element = event.currentTarget;
-                  if (!element.videoWidth || !element.videoHeight) return;
-                  setAspectByMedia((prev) => ({
-                    ...prev,
-                    [activeMedia]: element.videoWidth / element.videoHeight,
-                  }));
-                }}
-              />
-              <button
-                type="button"
-                aria-label="Activar o desactivar audio"
-                onClick={onToggleMute}
-                className="ig-post-mute-btn"
-              >
-                {isMuted ? <MutedAudioIcon /> : <PlayingAudioIcon />}
-              </button>
-            </>
-          ) : (
-            <img
-              src={getOptimizedImageUrl(activeMedia, 1080, 85)}
-              alt="publicacion"
-              className="absolute inset-0 w-full h-full object-contain"
-              loading="lazy"
-              onLoad={(event) => {
-                if (!activeMedia) return;
-                const element = event.currentTarget;
-                if (!element.naturalWidth || !element.naturalHeight) return;
-                setAspectByMedia((prev) => ({
-                  ...prev,
-                  [activeMedia]: element.naturalWidth / element.naturalHeight,
-                }));
-              }}
-              onError={(e) => {
-                const target = e.currentTarget;
-                if (target.src !== activeMedia) {
-                  target.src = activeMedia;
-                }
-              }}
-            />
-          )
-        ) : (
-          <div className="absolute inset-0 p-4 text-sm text-gray-200 overflow-auto">
-            <MentionText text={caption} />
-          </div>
-        )}
+        <AnimatePresence mode="popLayout" initial={false} custom={direction}>
+          <motion.div
+            key={activeMedia}
+            custom={direction}
+            variants={variants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{
+              x: { type: "spring", stiffness: 300, damping: 30 },
+              opacity: { duration: 0.2 },
+            }}
+            className="absolute inset-0 w-full h-full"
+          >
+            {activeMedia ? (
+              showVideo ? (
+                <>
+                  <video
+                    src={activeMedia}
+                    className="absolute inset-0 w-full h-full object-contain"
+                    autoPlay
+                    muted={isMuted}
+                    loop
+                    playsInline
+                    preload="metadata"
+                    controls={false}
+                    onLoadedMetadata={(event) => {
+                      if (!activeMedia) return;
+                      const element = event.currentTarget;
+                      if (!element.videoWidth || !element.videoHeight) return;
+                      setAspectByMedia((prev) => ({
+                        ...prev,
+                        [activeMedia]: element.videoWidth / element.videoHeight,
+                      }));
+                    }}
+                  />
+                  <button
+                    type="button"
+                    aria-label="Activar o desactivar audio"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleMute();
+                    }}
+                    className="ig-post-mute-btn z-20"
+                  >
+                    {isMuted ? <MutedAudioIcon /> : <PlayingAudioIcon />}
+                  </button>
+                </>
+              ) : (
+                <img
+                  src={getOptimizedImageUrl(activeMedia, 1080, 85)}
+                  alt="publicacion"
+                  className="absolute inset-0 w-full h-full object-contain"
+                  loading="lazy"
+                  onLoad={(event) => {
+                    if (!activeMedia) return;
+                    const element = event.currentTarget;
+                    if (!element.naturalWidth || !element.naturalHeight) return;
+                    setAspectByMedia((prev) => ({
+                      ...prev,
+                      [activeMedia]: element.naturalWidth / element.naturalHeight,
+                    }));
+                  }}
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    if (target.src !== activeMedia) {
+                      target.src = activeMedia;
+                    }
+                  }}
+                />
+              )
+            ) : (
+              <div className="absolute inset-0 p-4 text-sm text-gray-200 overflow-auto bg-slate-900">
+                <MentionText text={caption} />
+              </div>
+            )}
+          </motion.div>
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {showHeart && (
+            <motion.div
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: [0, 1.2, 1], opacity: [0, 1, 0] }}
+              exit={{ scale: 0, opacity: 0 }}
+              transition={{ duration: 0.8, times: [0, 0.2, 1] }}
+              className="absolute inset-0 flex items-center justify-center z-50 pointer-events-none"
+            >
+              <Heart className="w-24 h-24 text-white fill-white drop-shadow-2xl" />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {hasCarousel ? (
           <>
@@ -131,11 +212,19 @@ const FeedPostMedia = ({
         ) : null}
       </div>
       {hasCarousel ? (
-        <div className="ig-post-dots">
+        <div className="ig-post-dots gap-1.5">
           {mediaList.map((_, index) => (
-            <button
+            <motion.button
               key={`dot-${index}`}
-              onClick={() => onSelect(index)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelect(index);
+              }}
+              initial={false}
+              animate={{ 
+                scale: getDotScale(index),
+                opacity: index === activeMediaIndex ? 1 : 0.4
+              }}
               className={index === activeMediaIndex ? "ig-post-dot-active" : "ig-post-dot"}
               aria-label={`Ir a media ${index + 1}`}
             />

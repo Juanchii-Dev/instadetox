@@ -39,6 +39,7 @@ export const useProfilePostModalState = <
   const [modalLikedByMe, setModalLikedByMe] = useState(false);
   const [modalSaveBusy, setModalSaveBusy] = useState(false);
   const [modalSavedByMe, setModalSavedByMe] = useState(false);
+  const [modalCommentBusy, setModalCommentBusy] = useState(false);
 
   const modalCommentInputRef = useRef<HTMLInputElement | null>(null);
   const modalCommentsHydratedPostsRef = useRef<Set<string>>(new Set());
@@ -106,6 +107,8 @@ export const useProfilePostModalState = <
     setModalSaveBusy,
     modalSavedByMe,
     setModalSavedByMe,
+    modalCommentBusy,
+    setModalCommentBusy,
     modalCommentInputRef,
     modalCommentsHydratedPostsRef,
     modalCommentsScrollRef,

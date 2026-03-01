@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Compass, ChevronDown, Plus } from "lucide-react";
 import { Glass } from "@/components/ui/glass";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton, FeedPostSkeleton } from "@/components/ui/skeleton";
 import DailyBook from "@/components/DailyBook";
 import RightPanel from "@/components/RightPanel";
 import Footer from "@/components/Footer";

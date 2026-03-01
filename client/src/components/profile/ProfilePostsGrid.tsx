@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Virtuoso } from "react-virtuoso";
 import { getOptimizedImageUrl } from "@/lib/profileUtils";
+import { ProfileGridSkeleton } from "@/components/ui/skeleton";
 
 type ProfileTab = "posts" | "saved" | "tagged";
 
@@ -113,9 +114,7 @@ const ProfilePostsGrid = ({
         id={panelIdByTab[activeTab]}
         aria-labelledby={tabIdByTab[activeTab]}
       >
-        {Array.from({ length: 9 }).map((_, idx) => (
-          <div key={`profile-skeleton-${idx}`} className="inst-profile-grid-skeleton" />
-        ))}
+        <ProfileGridSkeleton />
       </div>
     );
   }

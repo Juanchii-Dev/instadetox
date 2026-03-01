@@ -234,6 +234,8 @@ const FeedPostCard = ({
         isMuted={isMuted}
         onToggleMute={() => setIsMuted((prev) => !prev)}
         caption={post.caption}
+        onDoubleTap={!post.likedByMe ? onToggleLike : undefined}
+        likedByMe={Boolean(post.likedByMe)}
       />
 
       <FeedPostFooter

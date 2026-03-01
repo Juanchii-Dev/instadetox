@@ -32,8 +32,9 @@ export const useFeedPostRealtime = ({ supabaseClient, userId, setFeed }: UseFeed
   useEffect(() => {
     if (!supabaseClient) return;
 
+    const channelId = userId ? `feed-posts-${userId}` : `feed-posts-anonymous-${Math.random().toString(36).substring(7)}`;
     const channel = supabaseClient
-      .channel(`feed-posts-realtime-${Date.now()}`)
+      .channel(channelId)
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "posts" },
@@ -42,6 +43,46 @@ export const useFeedPostRealtime = ({ supabaseClient, userId, setFeed }: UseFeed
           if (!updatedId) return;
           setFeed((prev) => prev.map((post) => (post.id === updatedId ? mergePostUpdate(post, payload) : post)));
         },
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "posts" },
+        async (payload) => {
+          const newPost = payload.new as any;
+          if (!newPost?.id) return;
+
+          // Si el autor es el usuario actual, ya tenemos sus datos. 
+          // Si no, fetch ligero del perfil para completar FeedPostCardRow.
+          let authorData = {
+            username: "usuario",
+            full_name: null,
+            avatar_url: null
+          };
+
+          if (userId && newPost.user_id === userId) {
+            // Podríamos sacar esto del contexto de auth pero para M12 fetch es más seguro contra staled state
+            const { data: profile } = await supabaseClient.from("profiles").select("username, full_name, avatar_url").eq("id", newPost.user_id).single();
+            if (profile) authorData = profile;
+          } else {
+            const { data: profile } = await supabaseClient.from("profiles").select("username, full_name, avatar_url").eq("id", newPost.user_id).single();
+            if (profile) authorData = profile;
+          }
+
+          const fullPost: FeedPostCardRow = {
+            ...newPost,
+            username: authorData.username,
+            full_name: authorData.full_name,
+            avatar_url: authorData.avatar_url,
+            likes_count: 0,
+            comments_count: 0,
+            likedByMe: false
+          };
+
+          setFeed((prev) => {
+            if (prev.some(p => p.id === fullPost.id)) return prev;
+            return [fullPost, ...prev];
+          });
+        }
       )
       .on(
         "postgres_changes",

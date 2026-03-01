@@ -107,7 +107,10 @@ const Search = () => {
     }
 
     setLoading(true);
-    const safeQuery = value.replace(/[%_]/g, "");
+    // Sanitización M12: Eliminar modificadores de LIKE y escapar caracteres especiales de FTS
+    const safeQuery = value
+      .replace(/[%_]/g, "") // Eliminar comodines de LIKE
+      .replace(/[&|!():*<>]/g, ""); // Escapar caracteres especiales de websearch_to_tsquery o tsquery
 
     try {
       // 1. Intentar Búsqueda Enterprise FTS (Garantía de relevancia)

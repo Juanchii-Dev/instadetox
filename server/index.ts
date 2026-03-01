@@ -37,11 +37,29 @@ const corsOptions: CorsOptions = {
 };
 
 const limiter = rateLimit({
-  windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS ?? "900000"),
-  max: Number(process.env.RATE_LIMIT_MAX ?? "200"),
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 100, // Límite global razonable para /api
   standardHeaders: true,
   legacyHeaders: false,
-  message: { message: "Too many requests, please try again later." },
+  message: { message: "Demasiadas peticiones desde esta IP, por favor intenta más tarde." },
+});
+
+// Limitador estricto para AUTH (Login/Register/Recovery) - Protección M12
+const authLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hora
+  max: 15, // Solo 15 intentos por hora por IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Demasiados intentos de acceso. Por seguridad, espera una hora." },
+});
+
+// Limitador para acciones sociales (Likes, Comments, Follows) - Anti-Spam
+const socialLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minuto
+  max: 20, // Máximo 20 acciones sociales por minuto
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Estás realizando acciones demasiado rápido. Tómate un respiro." },
 });
 
 app.use(
@@ -58,6 +76,7 @@ app.use(express.json({
 }));
 app.use(express.urlencoded({ extended: false, limit: "100kb" }));
 app.use("/api", limiter);
+app.use("/api/auth", authLimiter); // Este endpoint se manejará en routes.ts si existe, o se reserva para el futuro
 
 app.get("/health", (_req, res) => {
   res.status(200).json({ status: "ok" });
