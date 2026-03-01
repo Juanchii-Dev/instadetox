@@ -1,12 +1,17 @@
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/AuthContext";
-import { 
-  HelpCircle 
+import { useInbox } from "@/lib/MessagesContext";
+import {
+  HelpCircle
 } from "lucide-react";
 
 const MobileBottomNav = () => {
   const { user } = useAuth();
   const [location] = useLocation();
+  
+  // Sincronización de badge de mensajes (M12)
+  const { unreadByConversation } = useInbox();
+  const totalUnreadCount = Object.values(unreadByConversation).reduce((acc, count) => acc + count, 0);
 
   const isActive = (path: string) => {
     if (path === "/inicio" && (location === "/" || location === "/inicio")) return true;
@@ -153,10 +158,10 @@ const MobileBottomNav = () => {
           const active = isActive(item.path);
           
           return (
-            <Link 
-              key={item.name} 
+            <Link
+              key={item.name}
               href={item.path}
-              className={`flex flex-col items-center justify-center w-full h-full transition-all duration-300 ${active ? 'text-primary scale-110' : 'text-gray-400 hover:text-white'}`}
+              className={`flex flex-col items-center justify-center w-full h-full transition-all duration-300 relative ${active ? 'text-primary scale-110' : 'text-gray-400 hover:text-white'}`}
             >
               {item.icon === "user" ? (
                 <img
@@ -165,7 +170,15 @@ const MobileBottomNav = () => {
                   className={`w-7 h-7 rounded-full object-cover border-2 transition-all ${active ? 'border-primary ring-2 ring-primary/20' : 'border-transparent'}`}
                 />
               ) : (
-                renderInstagramSvg(item.icon, item.name, active)
+                <div className="relative">
+                  {renderInstagramSvg(item.icon, item.name, active)}
+                  {/* Badge de mensajes no leídos */}
+                  {item.icon === "message-circle" && totalUnreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center bg-red-500 text-white text-[10px] font-bold rounded-full border-2 border-background">
+                      {totalUnreadCount > 99 ? "99+" : totalUnreadCount}
+                    </span>
+                  )}
+                </div>
               )}
               <span className={`text-[10px] mt-1 font-medium transition-opacity ${active ? 'opacity-100' : 'opacity-70'}`}>{item.name}</span>
             </Link>
