@@ -1,0 +1,839 @@
+import { useState, useEffect } from "react";
+import { 
+  PlusCircle, 
+  Image, 
+  Quote, 
+  Target, 
+  Calendar, 
+  Loader2, 
+  X, 
+  MessageCircle, 
+  Edit, 
+  Check, 
+  Home as HomeIcon,
+  Upload 
+} from "lucide-react";
+import { Glass } from "@/components/ui/glass";
+import { useToast } from "@/hooks/use-toast";
+import { usePostStore, ContentType, Post, getContentTypeLabel } from "@/lib/postService";
+import { Link, useLocation } from "wouter";
+import { motion, AnimatePresence } from "framer-motion";
+import PostCard from "@/components/PostCard";
+
+// Opciones de imágenes para usar en publicaciones
+const IMAGE_OPTIONS = [
+  {
+    url: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8Mnx8cmVsYXh8ZW58MHx8MHx8&auto=format&fit=crop&w=500&q=60",
+    label: "Playa"
+  },
+  {
+    url: "https://images.unsplash.com/photo-1513682121497-80211f36a7d3?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8M3x8Zm9yZXN0fGVufDB8fDB8fA%3D%3D&auto=format&fit=crop&w=500&q=60",
+    label: "Bosque"
+  },
+  {
+    url: "https://images.unsplash.com/photo-1473296413359-d232d7ebc9a1?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8Mnx8bWluaW1hbGlzbXxlbnwwfHwwfHw%3D&auto=format&fit=crop&w=500&q=60",
+    label: "Minimalismo"
+  },
+  {
+    url: "https://images.unsplash.com/photo-1517021897933-0e0319cfbc28?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8MXx8bWluZGZ1bHxlbnwwfHwwfHw%3D&auto=format&fit=crop&w=500&q=60",
+    label: "Mindfulness"
+  },
+  {
+    url: "https://images.unsplash.com/photo-1487700160041-babef9c3cb55?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8NHx8bWluaW1hbGlzbXxlbnwwfHwwfHw%3D&auto=format&fit=crop&w=500&q=60",
+    label: "Bienestar"
+  },
+  {
+    url: "https://images.unsplash.com/photo-1548438294-1ad5d5f4f063?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8M3x8ZGlnaXRhbCUyMGRldG94fGVufDB8fDB8fA%3D%3D&auto=format&fit=crop&w=500&q=60",
+    label: "Desconexión"
+  }
+];
+
+const Create = () => {
+  // Estado para manejar el tipo de contenido seleccionado
+  const [contentType, setContentType] = useState<ContentType>('reflection');
+  const [title, setTitle] = useState<string>('');
+  const [content, setContent] = useState<string>('');
+  const [imageUrl, setImageUrl] = useState<string>('');
+  const [customImageUrl, setCustomImageUrl] = useState<string>('');
+  const [goalDate, setGoalDate] = useState<string>('');
+  const [showImageSelector, setShowImageSelector] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isPublished, setIsPublished] = useState<boolean>(false);
+  const [location, navigate] = useLocation();
+  
+  // Estado para mostrar publicaciones guardadas
+  const { posts, addPost, updatePost, deletePost } = usePostStore();
+
+  // Estado para el modo de edición
+  const [editingPost, setEditingPost] = useState<Post | null>(null);
+  const [showPosts, setShowPosts] = useState<boolean>(false);
+
+  const { toast } = useToast();
+
+  // Cargar post en edición si existe
+  useEffect(() => {
+    if (editingPost) {
+      setContentType(editingPost.type);
+      setTitle(editingPost.title);
+      setContent(editingPost.content);
+      setImageUrl(editingPost.image || '');
+      setGoalDate(editingPost.date || '');
+    }
+  }, [editingPost]);
+
+  // Función para validar el formulario
+  const validateForm = (): boolean => {
+    if (!title.trim()) {
+      toast({
+        title: "Título requerido",
+        description: "Por favor, añade un título a tu publicación",
+        duration: 3000,
+      });
+      return false;
+    }
+
+    if (!content.trim()) {
+      toast({
+        title: "Contenido requerido",
+        description: "Por favor, añade algún contenido a tu publicación",
+        duration: 3000,
+      });
+      return false;
+    }
+
+    if (contentType === 'goal' && !goalDate) {
+      toast({
+        title: "Fecha requerida",
+        description: "Por favor, selecciona una fecha para tu meta",
+        duration: 3000,
+      });
+      return false;
+    }
+
+    return true;
+  };
+
+  // Función para usar una URL de imagen personalizada
+  const handleCustomImageUrl = () => {
+    if (!customImageUrl.trim()) {
+      toast({
+        title: "URL vacía",
+        description: "Por favor, introduce una URL de imagen válida",
+        duration: 3000,
+      });
+      return;
+    }
+    
+    setImageUrl(customImageUrl);
+    setShowImageSelector(false);
+    setCustomImageUrl('');
+  };
+
+  // Función para publicar el contenido
+  const handleSubmit = () => {
+    if (!validateForm()) return;
+    
+    setIsSubmitting(true);
+    
+    // Simulamos un retraso para mostrar el estado de carga
+    setTimeout(() => {
+      try {
+        const now = new Date();
+        const newPost: Post = {
+          id: editingPost ? editingPost.id : `post-${Date.now()}`,
+          type: contentType,
+          title,
+          content,
+          image: imageUrl,
+          date: contentType === 'goal' ? goalDate : now.toISOString(),
+          dateFormatted: now.toLocaleDateString(),
+          likes: editingPost?.likes || 0,
+          comments: editingPost?.comments || 0
+        };
+        
+        if (editingPost) {
+          // Si estamos editando, actualizamos el post existente
+          updatePost(newPost);
+          toast({
+            title: "Publicación actualizada",
+            description: "Tu publicación ha sido actualizada correctamente",
+            duration: 3000,
+          });
+          setEditingPost(null);
+        } else {
+          // Si es una nueva publicación, la añadimos al inicio
+          addPost(newPost);
+          toast({
+            title: "¡Publicado con éxito!",
+            description: "Tu contenido ha sido publicado correctamente",
+            duration: 3000,
+          });
+          setIsPublished(true);
+        }
+        
+        // Resetear el formulario si no estamos en modo "publicado"
+        if (!isPublished) {
+          resetForm();
+        }
+      } catch (error) {
+        toast({
+          title: "Error al publicar",
+          description: "Ha ocurrido un error. Por favor, inténtalo de nuevo.",
+          duration: 3000,
+        });
+      } finally {
+        setIsSubmitting(false);
+      }
+    }, 800);
+  };
+
+  // Función para editar un post existente
+  const handleEditPost = (post: Post) => {
+    setEditingPost(post);
+    setShowPosts(false);
+    setIsPublished(false);
+  };
+
+  // Función para eliminar un post
+  const handleDeletePost = (postId: string) => {
+    deletePost(postId);
+    toast({
+      title: "Publicación eliminada",
+      description: "La publicación ha sido eliminada correctamente",
+      duration: 3000,
+    });
+  };
+
+  // Función para cancelar la edición
+  const cancelEdit = () => {
+    setEditingPost(null);
+    resetForm();
+  };
+
+  // Resetear el formulario
+  const resetForm = () => {
+    setTitle('');
+    setContent('');
+    setImageUrl('');
+    setGoalDate('');
+    setShowImageSelector(false);
+    setIsPublished(false);
+  };
+
+  // Función para ir al inicio después de publicar
+  const goToHome = () => {
+    navigate('/');
+  };
+
+  // Función para crear una nueva publicación
+  const startNewPost = () => {
+    resetForm();
+  };
+
+  // Renderizado condicional para diferentes tipos de contenido
+  const renderContentTypeForm = () => {
+    switch (contentType) {
+      case 'reflection':
+        return (
+          <div className="space-y-4">
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Título de tu reflexión"
+              className="w-full bg-black/30 border border-gray-700 rounded-lg p-3 text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            <textarea 
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="Comparte tus pensamientos y experiencias sobre el desapego digital..."
+              className="w-full bg-black/30 border border-gray-700 rounded-lg p-4 text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary resize-none h-32"
+            />
+            
+            {/* Selector de imagen */}
+            <div>
+              <button 
+                type="button"
+                onClick={() => setShowImageSelector(!showImageSelector)}
+                className="flex items-center text-sm text-gray-300 hover:text-white"
+              >
+                <Image className="w-4 h-4 mr-2" />
+                {imageUrl ? 'Cambiar imagen' : 'Añadir imagen'}
+              </button>
+              
+              {showImageSelector && (
+                <motion.div 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="mt-3"
+                >
+                  {/* URL personalizada */}
+                  <div className="mb-3 flex">
+                    <input
+                      type="text"
+                      value={customImageUrl}
+                      onChange={(e) => setCustomImageUrl(e.target.value)}
+                      placeholder="Pega una URL de imagen..."
+                      className="flex-1 bg-black/30 border border-gray-700 rounded-l-lg p-2 text-white placeholder:text-gray-500 focus:outline-none"
+                    />
+                    <button
+                      onClick={handleCustomImageUrl}
+                      className="bg-gray-800 hover:bg-gray-700 px-3 rounded-r-lg border border-gray-700 border-l-0"
+                    >
+                      <Upload className="w-4 h-4" />
+                    </button>
+                  </div>
+                  
+                  {/* Galería de imágenes */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {IMAGE_OPTIONS.map((img, idx) => (
+                      <motion.div 
+                        key={idx}
+                        whileHover={{ scale: 1.05 }}
+                        onClick={() => {
+                          setImageUrl(img.url);
+                          setShowImageSelector(false);
+                        }}
+                        className={`cursor-pointer rounded-lg overflow-hidden border-2 ${imageUrl === img.url ? 'border-primary' : 'border-transparent'}`}
+                      >
+                        <img 
+                          src={img.url} 
+                          alt={img.label}
+                          className="w-full h-24 object-cover"
+                        />
+                        <div className="p-1 text-xs text-center">{img.label}</div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+              
+              {imageUrl && !showImageSelector && (
+                <div className="mt-2 relative">
+                  <img 
+                    src={imageUrl} 
+                    alt="Imagen seleccionada" 
+                    className="w-full h-40 object-cover rounded-lg"
+                  />
+                  <button 
+                    onClick={() => setImageUrl('')}
+                    className="absolute top-2 right-2 bg-black/70 p-1 rounded-full hover:bg-black transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+        
+      case 'quote':
+        return (
+          <div className="space-y-4">
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Autor de la cita"
+              className="w-full bg-black/30 border border-gray-700 rounded-lg p-3 text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            <textarea 
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="Escribe aquí la cita inspiradora..."
+              className="w-full bg-black/30 border border-gray-700 rounded-lg p-4 text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary resize-none h-32"
+            />
+            
+            {/* Selector de imagen opcional para citas */}
+            <div>
+              <button 
+                type="button"
+                onClick={() => setShowImageSelector(!showImageSelector)}
+                className="flex items-center text-sm text-gray-300 hover:text-white"
+              >
+                <Image className="w-4 h-4 mr-2" />
+                {imageUrl ? 'Cambiar imagen' : 'Añadir imagen (opcional)'}
+              </button>
+              
+              {showImageSelector && (
+                <motion.div 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2"
+                >
+                  {IMAGE_OPTIONS.map((img, idx) => (
+                    <div 
+                      key={idx}
+                      onClick={() => {
+                        setImageUrl(img.url);
+                        setShowImageSelector(false);
+                      }}
+                      className={`cursor-pointer rounded-lg overflow-hidden border-2 ${imageUrl === img.url ? 'border-primary' : 'border-transparent'}`}
+                    >
+                      <img 
+                        src={img.url} 
+                        alt={img.label}
+                        className="w-full h-24 object-cover"
+                      />
+                      <div className="p-1 text-xs text-center">{img.label}</div>
+                    </div>
+                  ))}
+                </motion.div>
+              )}
+              
+              {imageUrl && !showImageSelector && (
+                <div className="mt-2 relative">
+                  <img 
+                    src={imageUrl} 
+                    alt="Imagen seleccionada" 
+                    className="w-full h-40 object-cover rounded-lg"
+                  />
+                  <button 
+                    onClick={() => setImageUrl('')}
+                    className="absolute top-2 right-2 bg-black/70 p-1 rounded-full hover:bg-black"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+        
+      case 'goal':
+        return (
+          <div className="space-y-4">
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Título de tu meta"
+              className="w-full bg-black/30 border border-gray-700 rounded-lg p-3 text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            <textarea 
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="Describe tu meta de desintoxicación digital..."
+              className="w-full bg-black/30 border border-gray-700 rounded-lg p-4 text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary resize-none h-32"
+            />
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Fecha objetivo</label>
+              <input
+                type="date"
+                value={goalDate}
+                onChange={(e) => setGoalDate(e.target.value)}
+                min={new Date().toISOString().split('T')[0]}
+                className="w-full bg-black/30 border border-gray-700 rounded-lg p-3 text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+            
+            {/* Selector de imagen opcional para metas */}
+            <div className="mt-2">
+              <button 
+                type="button"
+                onClick={() => setShowImageSelector(!showImageSelector)}
+                className="flex items-center text-sm text-gray-300 hover:text-white"
+              >
+                <Image className="w-4 h-4 mr-2" />
+                {imageUrl ? 'Cambiar imagen' : 'Añadir imagen (opcional)'}
+              </button>
+              
+              {showImageSelector && (
+                <motion.div 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2"
+                >
+                  {IMAGE_OPTIONS.map((img, idx) => (
+                    <div 
+                      key={idx}
+                      onClick={() => {
+                        setImageUrl(img.url);
+                        setShowImageSelector(false);
+                      }}
+                      className={`cursor-pointer rounded-lg overflow-hidden border-2 ${imageUrl === img.url ? 'border-primary' : 'border-transparent'}`}
+                    >
+                      <img 
+                        src={img.url} 
+                        alt={img.label}
+                        className="w-full h-24 object-cover"
+                      />
+                      <div className="p-1 text-xs text-center">{img.label}</div>
+                    </div>
+                  ))}
+                </motion.div>
+              )}
+              
+              {imageUrl && !showImageSelector && (
+                <div className="mt-2 relative">
+                  <img 
+                    src={imageUrl} 
+                    alt="Imagen seleccionada" 
+                    className="w-full h-40 object-cover rounded-lg"
+                  />
+                  <button 
+                    onClick={() => setImageUrl('')}
+                    className="absolute top-2 right-2 bg-black/70 p-1 rounded-full hover:bg-black"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+        
+      case 'milestone':
+        return (
+          <div className="space-y-4">
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Título del logro"
+              className="w-full bg-black/30 border border-gray-700 rounded-lg p-3 text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            <textarea 
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="Describe el logro que has alcanzado en tu desintoxicación digital..."
+              className="w-full bg-black/30 border border-gray-700 rounded-lg p-4 text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary resize-none h-32"
+            />
+            {/* Selector de imagen */}
+            <div>
+              <button 
+                type="button"
+                onClick={() => setShowImageSelector(!showImageSelector)}
+                className="flex items-center text-sm text-gray-300 hover:text-white"
+              >
+                <Image className="w-4 h-4 mr-2" />
+                {imageUrl ? 'Cambiar imagen' : 'Añadir imagen'}
+              </button>
+              
+              {showImageSelector && (
+                <motion.div 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2"
+                >
+                  {IMAGE_OPTIONS.map((img, idx) => (
+                    <div 
+                      key={idx}
+                      onClick={() => {
+                        setImageUrl(img.url);
+                        setShowImageSelector(false);
+                      }}
+                      className={`cursor-pointer rounded-lg overflow-hidden border-2 ${imageUrl === img.url ? 'border-primary' : 'border-transparent'}`}
+                    >
+                      <img 
+                        src={img.url} 
+                        alt={img.label}
+                        className="w-full h-24 object-cover"
+                      />
+                      <div className="p-1 text-xs text-center">{img.label}</div>
+                    </div>
+                  ))}
+                </motion.div>
+              )}
+              
+              {imageUrl && !showImageSelector && (
+                <div className="mt-2 relative">
+                  <img 
+                    src={imageUrl} 
+                    alt="Imagen seleccionada" 
+                    className="w-full h-40 object-cover rounded-lg"
+                  />
+                  <button 
+                    onClick={() => setImageUrl('')}
+                    className="absolute top-2 right-2 bg-black/70 p-1 rounded-full hover:bg-black"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+        
+      default:
+        return null;
+    }
+  };
+
+  // Función para renderizar el ícono según el tipo de contenido
+  const getContentTypeIcon = (type: ContentType) => {
+    switch (type) {
+      case 'reflection':
+        return <MessageCircle className="w-4 h-4" />;
+      case 'quote':
+        return <Quote className="w-4 h-4" />;
+      case 'goal':
+        return <Target className="w-4 h-4" />;
+      case 'milestone':
+        return <Calendar className="w-4 h-4" />;
+    }
+  };
+
+  // Componente para mostrar publicaciones previas
+  const renderPostsList = () => {
+    if (posts.length === 0) {
+      return (
+        <div className="text-center p-8 text-gray-400">
+          <p>Aún no has creado ninguna publicación</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
+        {posts.map((post) => (
+          <div key={post.id} className="border border-gray-800 rounded-lg p-4 hover:border-gray-700 transition-colors">
+            <div className="flex justify-between items-start mb-2">
+              <div className="flex items-center">
+                <div className="bg-gray-800 p-1.5 rounded-md mr-2">
+                  {getContentTypeIcon(post.type)}
+                </div>
+                <h3 className="font-medium">{post.title}</h3>
+              </div>
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => handleEditPost(post)}
+                  className="p-1.5 hover:bg-gray-800 rounded transition-colors"
+                  title="Editar"
+                >
+                  <Edit className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => handleDeletePost(post.id)}
+                  className="p-1.5 hover:bg-gray-800 rounded transition-colors text-red-500"
+                  title="Eliminar"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+            <p className="text-sm text-gray-400 mb-2">
+              {post.dateFormatted || new Date(post.date).toLocaleDateString()}
+            </p>
+            <p className="text-sm truncate">{post.content}</p>
+            
+            {post.image && (
+              <div className="mt-2">
+                <img 
+                  src={post.image} 
+                  alt={post.title} 
+                  className="w-full h-32 object-cover rounded-lg"
+                />
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  return (
+    <div className="container mx-auto max-w-5xl animate-in fade-in duration-500">
+      <AnimatePresence mode="wait">
+        {isPublished ? (
+          <motion.div
+            key="success-view"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+            className="space-y-6 pb-8"
+          >
+            <Glass className="p-6">
+              <div className="flex flex-col items-center text-center py-8">
+                <div className="w-20 h-20 bg-primary/20 rounded-full flex items-center justify-center mb-4">
+                  <Check className="w-10 h-10 text-primary" />
+                </div>
+                
+                <h2 className="text-2xl font-bold mb-2">¡Publicación creada con éxito!</h2>
+                <p className="text-gray-300 max-w-md mb-8">
+                  Tu contenido ha sido publicado y ya está disponible en el feed principal para que todos puedan verlo.
+                </p>
+                
+                <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
+                  <motion.button 
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={goToHome}
+                    className="px-6 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg flex items-center justify-center"
+                  >
+                    <HomeIcon className="w-4 h-4 mr-2" />
+                    Ir al Inicio
+                  </motion.button>
+                  
+                  <motion.button 
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={startNewPost}
+                    className="px-6 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg flex items-center justify-center"
+                  >
+                    <PlusCircle className="w-4 h-4 mr-2" />
+                    Crear nueva publicación
+                  </motion.button>
+                </div>
+              </div>
+            </Glass>
+            
+            {/* Vista previa de la publicación */}
+            <div className="mt-8">
+              <h3 className="text-lg font-medium mb-4">Vista previa de tu publicación:</h3>
+              <PostCard 
+                post={{
+                  id: `post-${Date.now()}`,
+                  type: contentType,
+                  title: title,
+                  content: content,
+                  image: imageUrl,
+                  date: new Date().toISOString(),
+                  likes: 0,
+                  comments: 0
+                }} 
+              />
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="create-view"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+            className="space-y-6 pb-8"
+          >
+            <Glass className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold flex items-center">
+                  <PlusCircle className="w-5 h-5 mr-2 text-primary" />
+                  {editingPost ? 'Editar publicación' : 'Crear nueva publicación'}
+                </h2>
+                
+                <button 
+                  onClick={() => setShowPosts(!showPosts)}
+                  className="text-sm bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded-full transition-colors"
+                >
+                  {showPosts ? 'Volver a crear' : 'Ver mis publicaciones'}
+                </button>
+              </div>
+              
+              {!showPosts ? (
+                <>
+                  {/* Selector de tipo de contenido */}
+                  <div className="mb-6">
+                    <label className="block text-sm text-gray-400 mb-2">Tipo de contenido</label>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => setContentType('reflection')}
+                        className={`p-3 rounded-lg flex items-center justify-center transition-colors ${
+                          contentType === 'reflection' ? 'bg-primary text-white' : 'bg-gray-800 hover:bg-gray-700'
+                        }`}
+                      >
+                        <MessageCircle className="w-4 h-4 mr-2" />
+                        <span>Reflexión</span>
+                      </motion.button>
+                      
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => setContentType('quote')}
+                        className={`p-3 rounded-lg flex items-center justify-center transition-colors ${
+                          contentType === 'quote' ? 'bg-primary text-white' : 'bg-gray-800 hover:bg-gray-700'
+                        }`}
+                      >
+                        <Quote className="w-4 h-4 mr-2" />
+                        <span>Cita</span>
+                      </motion.button>
+                      
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => setContentType('goal')}
+                        className={`p-3 rounded-lg flex items-center justify-center transition-colors ${
+                          contentType === 'goal' ? 'bg-primary text-white' : 'bg-gray-800 hover:bg-gray-700'
+                        }`}
+                      >
+                        <Target className="w-4 h-4 mr-2" />
+                        <span>Meta</span>
+                      </motion.button>
+                      
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => setContentType('milestone')}
+                        className={`p-3 rounded-lg flex items-center justify-center transition-colors ${
+                          contentType === 'milestone' ? 'bg-primary text-white' : 'bg-gray-800 hover:bg-gray-700'
+                        }`}
+                      >
+                        <Calendar className="w-4 h-4 mr-2" />
+                        <span>Logro</span>
+                      </motion.button>
+                    </div>
+                  </div>
+                  
+                  {/* Formulario específico según el tipo de contenido */}
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={contentType}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      {renderContentTypeForm()}
+                    </motion.div>
+                  </AnimatePresence>
+                  
+                  {/* Botones de acción */}
+                  <div className="flex mt-6 space-x-3">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={handleSubmit}
+                      disabled={isSubmitting}
+                      className="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg flex items-center transition-colors"
+                    >
+                      {isSubmitting ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <PlusCircle className="w-4 h-4 mr-2" />
+                      )}
+                      {editingPost ? 'Guardar cambios' : 'Publicar'}
+                    </motion.button>
+                    
+                    {editingPost && (
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={cancelEdit}
+                        className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
+                      >
+                        Cancelar
+                      </motion.button>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h3 className="text-lg font-medium mb-4">Mis publicaciones</h3>
+                  {renderPostsList()}
+                </>
+              )}
+            </Glass>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+export default Create;
