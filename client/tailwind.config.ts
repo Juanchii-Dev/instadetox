@@ -54,10 +54,35 @@ export default {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+        // Animación de typing indicator - efecto bounce de Instagram
+        "typing-bounce": {
+          "0%, 60%, 100%": {
+            transform: "translateY(0)",
+            opacity: "0.4",
+          },
+          "30%": {
+            transform: "translateY(-6px)",
+            opacity: "1",
+          },
+        },
+        // Fade in suave para la burbuja completa
+        "typing-fade-in": {
+          from: {
+            opacity: "0",
+            transform: "translateY(8px)",
+          },
+          to: {
+            opacity: "1",
+            transform: "translateY(0)",
+          },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        // Animación del typing indicator: 1.2s por ciclo, ease-in-out
+        "typing-bounce": "typing-bounce 1.2s ease-in-out infinite",
+        "typing-fade-in": "typing-fade-in 0.25s ease-out forwards",
       },
     },
   },

@@ -1296,11 +1296,18 @@ export const useMessagesInbox = ({ userId }: UseMessagesInboxParams) => {
       const senderId = payload?.senderId;
       if (typeof senderId !== "string" || senderId === userId) return;
 
-      setPeerTyping(Boolean(payload?.isTyping));
+      const hasText = Boolean(payload?.hasText ?? payload?.isTyping);
+      setPeerTyping(hasText);
+
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-      typingTimeoutRef.current = setTimeout(() => {
-        setPeerTyping(false);
-      }, 2400);
+
+      // Solo usar timeout como fallback cuando no hay texto en el input del peer
+      // Si hay texto, el indicador permanece activo hasta que el peer lo borre o envíe
+      if (!hasText) {
+        typingTimeoutRef.current = setTimeout(() => {
+          setPeerTyping(false);
+        }, 2400);
+      }
     });
 
     channel.on("broadcast", { event: "seen" }, ({ payload }) => {
@@ -1403,7 +1410,7 @@ export const useMessagesInbox = ({ userId }: UseMessagesInboxParams) => {
       void typingChannelRef.current.send({
         type: "broadcast",
         event: "typing",
-        payload: { senderId: userId, isTyping },
+        payload: { senderId: userId, isTyping, hasText: isTyping },
       });
     },
     [userId],

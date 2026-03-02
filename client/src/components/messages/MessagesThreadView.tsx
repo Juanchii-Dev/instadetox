@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect, useCallback } from "react";
 import { Link } from "wouter";
 import { type Conversation, type InboxMessage, type ReplyToPayload } from "@/hooks/useMessagesInbox";
+import { TypingIndicatorBubble } from "./TypingIndicator";
 
 interface MessagesThreadViewProps {
   currentUserId: string | null;
@@ -133,6 +134,13 @@ const MessagesThreadView = ({
     setLatestPeerMsgId(null);
   }, [scrollToBottom]);
 
+  // Autoscroll al final cuando aparece el indicador de typing del peer
+  useEffect(() => {
+    if (peerTyping && isNearBottom()) {
+      scrollToBottom("smooth");
+    }
+  }, [peerTyping, isNearBottom, scrollToBottom]);
+
   // Scroll instantáneo al cargar la conversación (primera vez)
   useEffect(() => {
     if (!loadingMessages && messages.length > 0) {
@@ -230,7 +238,6 @@ const MessagesThreadView = ({
             </svg>
           </button>
         </div>
-        {peerTyping ? <p className="ig-dm-typing-indicator-absolute">Escribiendo...</p> : null}
       </header>
 
       {/* Contenedor de scroll del hilo */}
@@ -577,6 +584,15 @@ const MessagesThreadView = ({
               </React.Fragment>
             );
           })
+        )}
+        {/* Typing Indicator - Burbuja animada cuando el peer está escribiendo */}
+        {peerTyping && (
+          <TypingIndicatorBubble
+            avatarUrl={selectedConversation.avatarUrl}
+            username={selectedConversation.username ?? "Usuario"}
+            size="medium"
+            variant="dark"
+          />
         )}
         {/* Anchor invisible al final para scrollToBottom */}
         <div ref={bottomAnchorRef} aria-hidden="true" style={{ height: 1 }} />
