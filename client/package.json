@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "node ../node_modules/vite/bin/vite.js --config vite.config.ts --host --port 5173 --force",
-    "build": "node ../node_modules/vite/bin/vite.js build --config vite.config.ts",
+    "build": "vite build --config vite.config.ts",
     "check": "node ../node_modules/typescript/bin/tsc -p tsconfig.json --noEmit",
     "test": "node ../node_modules/vitest/vitest.mjs run"
   }
