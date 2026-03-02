@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "node ../node_modules/tsx/dist/cli.mjs watch index.ts",
-    "build": "node ../node_modules/esbuild/bin/esbuild index.ts --platform=node --packages=external --bundle --format=esm --outdir=../dist/server",
+    "build": "npx esbuild index.ts --platform=node --packages=external --bundle --format=esm --outdir=../dist/server",
     "start": "node ../dist/server/index.js",
     "check": "node ../node_modules/typescript/bin/tsc -p ../tsconfig.json --noEmit"
   }
