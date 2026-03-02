@@ -3,6 +3,7 @@ type ProfileTab = "posts" | "saved" | "tagged";
 interface ProfileTabsProps {
   activeTab: ProfileTab;
   onChangeTab: (tab: ProfileTab) => void;
+  username?: string;
 }
 
 const ProfileTabs = ({ activeTab, onChangeTab }: ProfileTabsProps) => {

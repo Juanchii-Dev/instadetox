@@ -3,14 +3,21 @@ import { NAVIGATION_ITEMS } from "@/lib/utils";
 import { useAuth } from "@/lib/AuthContext";
 import { prefetchProfileRouteSnapshot } from "@/lib/profileRouteCache";
 import BrandLogo from "@/components/BrandLogo";
-import { HelpCircle } from "lucide-react";
+import { HelpCircle, Settings, BarChart3, Bookmark, Moon, Flag } from "lucide-react";
 import { useInbox } from "@/lib/MessagesContext";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const SIDEBAR_ICON_COLUMN = "w-[62px]";
 
 const Sidebar = () => {
-  const { user } = useAuth();
-  const [location] = useLocation();
+  const { user, signOut } = useAuth();
+  const [location, navigate] = useLocation();
   const profilePath = `/${user?.username ?? "perfil"}`;
   
   // Sincronización global de mensajes (Empresa - M12)
@@ -24,11 +31,12 @@ const Sidebar = () => {
   };
   
   const isActive = (path: string) => {
+    const loc = location as unknown as string;
     // Handle root path
-    if (path === "/inicio" && (location === "/" || location === "/inicio")) {
+    if (path === "/inicio" && (loc === "/" || loc === "/inicio")) {
       return true;
     }
-    return location === path;
+    return loc === path;
   };
 
   const renderInstagramSvg = (iconName: string, label: string) => {
@@ -223,20 +231,85 @@ const Sidebar = () => {
       </nav>
       
       <div className="mt-auto px-2 py-3">
-        <Link
-          href="/mas"
-          aria-label="Mas"
-          aria-current={isActive("/mas") ? "page" : undefined}
-          title="Mas"
-          className={`flex items-center h-12 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent transition-colors ${
-            isActive("/mas") ? "bg-primary/20 text-white" : "text-gray-200 hover:bg-white/10"
-          }`}
-        >
-          <span className={`${SIDEBAR_ICON_COLUMN} h-12 flex items-center justify-center shrink-0`}>
-            {renderInstagramSvg("more-horizontal", "Mas")}
-          </span>
-          <span className={labelVisibilityClasses}>Mas</span>
-        </Link>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              aria-label="Mas"
+              title="Mas"
+              className="flex items-center h-12 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent transition-colors text-gray-200 hover:bg-white/10 w-full"
+            >
+              <span className={`${SIDEBAR_ICON_COLUMN} h-12 flex items-center justify-center shrink-0`}>
+                {renderInstagramSvg("more-horizontal", "Mas")}
+              </span>
+              <span className={labelVisibilityClasses}>Mas</span>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            side="top"
+            align="start"
+            sideOffset={8}
+            className="w-[260px] bg-[#262626] border-none rounded-xl shadow-[0_0_5px_1px_rgba(0,0,0,0.0975)] p-0 py-2"
+          >
+            <DropdownMenuItem
+              onClick={() => navigate("/edit-profile")}
+              className="flex items-center gap-3 px-4 py-3 text-[#fafafa] text-sm cursor-pointer hover:bg-[#363636] focus:bg-[#363636] rounded-none border-none outline-none"
+            >
+              <Settings className="w-5 h-5" />
+              <span>Configuración</span>
+            </DropdownMenuItem>
+            
+            <DropdownMenuItem
+              className="flex items-center gap-3 px-4 py-3 text-[#fafafa] text-sm cursor-pointer hover:bg-[#363636] focus:bg-[#363636] rounded-none border-none outline-none"
+            >
+              <BarChart3 className="w-5 h-5" />
+              <span>Tu actividad</span>
+            </DropdownMenuItem>
+            
+            <DropdownMenuItem
+              onClick={() => {
+                if (user?.username) {
+                  navigate(`/${user.username}/saved`);
+                }
+              }}
+              className="flex items-center gap-3 px-4 py-3 text-[#fafafa] text-sm cursor-pointer hover:bg-[#363636] focus:bg-[#363636] rounded-none border-none outline-none"
+            >
+              <Bookmark className="w-5 h-5" />
+              <span>Guardado</span>
+            </DropdownMenuItem>
+            
+            <DropdownMenuItem
+              className="flex items-center gap-3 px-4 py-3 text-[#fafafa] text-sm cursor-pointer hover:bg-[#363636] focus:bg-[#363636] rounded-none border-none outline-none"
+            >
+              <Moon className="w-5 h-5" />
+              <span>Cambiar apariencia</span>
+            </DropdownMenuItem>
+            
+            <DropdownMenuItem
+              className="flex items-center gap-3 px-4 py-3 text-[#fafafa] text-sm cursor-pointer hover:bg-[#363636] focus:bg-[#363636] rounded-none border-none outline-none"
+            >
+              <Flag className="w-5 h-5" />
+              <span>Reportar un problema</span>
+            </DropdownMenuItem>
+            
+            <DropdownMenuSeparator className="h-[1px] bg-[#363636] my-1" />
+            
+            <DropdownMenuItem
+              className="flex items-center px-4 py-3 text-[#fafafa] text-sm cursor-pointer hover:bg-[#363636] focus:bg-[#363636] rounded-none border-none outline-none"
+            >
+              <span>Cambiar de cuenta</span>
+            </DropdownMenuItem>
+            
+            <DropdownMenuSeparator className="h-[1px] bg-[#363636] my-1" />
+            
+            <DropdownMenuItem
+              onClick={() => void signOut()}
+              className="flex items-center px-4 py-3 text-[#fafafa] text-sm cursor-pointer hover:bg-[#363636] focus:bg-[#363636] rounded-none border-none outline-none"
+            >
+              <span>Salir</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         <Link
           href="/mas"

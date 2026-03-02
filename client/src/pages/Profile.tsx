@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useRoute } from "wouter";
+import { useLocation, useRoute, useParams } from "wouter";
 import { useAuth } from "@/lib/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { useProfileCommentLikesActions } from "@/hooks/useProfileCommentLikesActions";
@@ -126,6 +126,7 @@ const Profile = () => {
   );
   const [, setLocation] = useLocation();
   const [isPublicRouteMatch, params] = useRoute<{ username: string }>("/:username");
+  const [isSavedRouteMatch, savedParams] = useRoute<{ username: string }>("/:username/saved");
   const [isPostRouteMatch, postRouteParams] = useRoute<{ postId: string }>("/p/:postId");
   const [resolvedPostRouteUsername, setResolvedPostRouteUsername] = useState<string | null>(null);
   const [postRouteResolutionDone, setPostRouteResolutionDone] = useState(false);
@@ -146,6 +147,15 @@ const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<ProfileTab>("posts");
   const [detoxDays, setDetoxDays] = useState(0);
+
+  // Efecto para sincronizar el tab activo con la URL
+  useEffect(() => {
+    if (isSavedRouteMatch) {
+      setActiveTab("saved");
+    } else if (isPublicRouteMatch && !isSavedRouteMatch) {
+      setActiveTab("posts");
+    }
+  }, [isSavedRouteMatch, isPublicRouteMatch]);
   const {
     modalIndex,
     setModalIndex,
@@ -230,6 +240,20 @@ const Profile = () => {
   const setActiveTabPosts = useCallback(() => {
     setActiveTab("posts");
   }, []);
+
+  const handleTabChange = useCallback((tab: ProfileTab) => {
+    const username = profileData?.username ?? targetUsername ?? user?.username;
+    if (!username) return;
+
+    if (tab === "saved") {
+      setLocation(`/${username}/saved`);
+    } else if (tab === "posts") {
+      setLocation(`/${username}`);
+    } else {
+      // Para "tagged" y otros tabs, solo actualizar estado local por ahora
+      setActiveTab(tab);
+    }
+  }, [profileData?.username, targetUsername, user?.username, setLocation]);
   const isOwnProfile = Boolean(profileData?.id && user?.id && profileData.id === user.id);
   const isPrivateProfile = Boolean(profileData?.is_private);
   const canViewPrivateContent = isOwnProfile || isFollowing || !isPrivateProfile;
@@ -689,7 +713,7 @@ const Profile = () => {
 
         {canViewPrivateContent ? (
           <>
-            <ProfileTabs activeTab={activeTab} onChangeTab={setActiveTab} />
+            <ProfileTabs activeTab={activeTab} onChangeTab={handleTabChange} />
 
             <ProfilePostsGrid
               posts={activeTabPosts}

@@ -104,6 +104,11 @@ function AppRoutes() {
           <Profile />
         </FeatureErrorBoundary>
       </Route>
+      <Route path="/:username/saved">
+        <FeatureErrorBoundary featureName="Perfil">
+          <Profile />
+        </FeatureErrorBoundary>
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );

@@ -6,18 +6,21 @@ export interface ApiError extends Error {
   retryable: boolean;
 }
 
+// URL base del backend - en producción debe apuntar al servidor Express
+const API_BASE_URL = import.meta.env.VITE_API_URL || "";
+
 export async function apiFetch(endpoint: string, options: RequestInit = {}) {
   if (!supabase) throw new Error("Supabase client not initialized");
-  
+
   try {
     const { data: { session } } = await supabase.auth.getSession();
-    
+
     // 2. Construir los headers y preservar los existentes
     const headers = new Headers(options.headers);
     if (session?.access_token) {
       headers.set("Authorization", `Bearer ${session.access_token}`);
     }
-    
+
     if (!headers.has("Content-Type") && !(options.body instanceof FormData)) {
       headers.set("Content-Type", "application/json");
     }
@@ -28,8 +31,9 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}) {
       headers,
     };
 
-    // 4. Hacer fetch
-    const response = await fetch(endpoint, finalOptions);
+    // 4. Construir URL completa usando el backend configurado
+    const url = endpoint.startsWith("http") ? endpoint : `${API_BASE_URL}${endpoint}`;
+    const response = await fetch(url, finalOptions);
 
     if (!response.ok) {
       const status = response.status;
