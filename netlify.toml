@@ -28,6 +28,10 @@
   
   # Asegurar que estemos en modo producción
   NODE_ENV = "production"
+  
+  # IMPORTANTE: Instalar devDependencies (Vite está en devDependencies)
+  # Netlify corre npm install en modo producción por defecto, que ignora devDependencies
+  NPM_CONFIG_PRODUCTION = "false"
 
 # ============================================================================
 # REDIRECTS - SPA Support
