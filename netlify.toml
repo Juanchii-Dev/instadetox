@@ -1,0 +1,144 @@
+# ============================================================================
+# INSTADETOX - NETLIFY CONFIGURATION
+# Configuración completa para deploy en Netlify
+# ============================================================================
+
+[build]
+  # Comando de build que compila cliente y servidor
+  command = "npm run build"
+  
+  # Directorio de salida del build (Vite output)
+  publish = "dist/public"
+  
+  # Directorio de funciones serverless (Netlify Functions)
+  functions = "netlify/functions"
+
+[build.environment]
+  # Node.js version
+  NODE_VERSION = "20"
+  
+  # NPM version
+  NPM_VERSION = "10"
+
+# ============================================================================
+# REDIRECTS - SPA Support
+# ============================================================================
+
+# Redirección para SPA (Single Page Application)
+# Todas las rutas no encontradas van al index.html
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  conditions = {Role = ["admin", "editor", "user"]}
+
+# Redirección específica para API (si se usa Netlify Functions)
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+
+# ============================================================================
+# HEADERS - Security Headers
+# ============================================================================
+
+# Headers de seguridad para todas las rutas
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # Prevenir clickjacking
+    X-Frame-Options = "DENY"
+    
+    # Prevenir MIME type sniffing
+    X-Content-Type-Options = "nosniff"
+    
+    # Política de referrer
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    
+    # Política de permisos
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(self), payment=(), usb=(), magnetometer=(), gyroscope=()"
+    
+    # Content Security Policy (ajustar según necesidades)
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://*.supabase.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co https://instagram.com https://*.instagram.com https://*.fbcdn.net; connect-src 'self' https://*.supabase.co https://*.supabase.in wss://*.supabase.co wss://*.supabase.in; frame-ancestors 'none'; base-uri 'self'; form-action 'self';"
+    
+    # Strict Transport Security (HSTS) - Solo en producción
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
+
+# Headers específicos para assets estáticos (caché)
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "*.png"
+  [headers.values]
+    Cache-Control = "public, max-age=2592000"
+
+[[headers]]
+  for = "*.jpg"
+  [headers.values]
+    Cache-Control = "public, max-age=2592000"
+
+[[headers]]
+  for = "*.jpeg"
+  [headers.values]
+    Cache-Control = "public, max-age=2592000"
+
+[[headers]]
+  for = "*.svg"
+  [headers.values]
+    Cache-Control = "public, max-age=2592000"
+
+[[headers]]
+  for = "*.woff2"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# ============================================================================
+# CONTEXT-SPECIFIC SETTINGS
+# ============================================================================
+
+# Configuración para deploys de producción
+[context.production]
+  [context.production.environment]
+    NODE_ENV = "production"
+
+# Configuración para deploy previews
+[context.deploy-preview]
+  [context.deploy-preview.environment]
+    NODE_ENV = "production"
+
+# Configuración para branch deploys
+[context.branch-deploy]
+  [context.branch-deploy.environment]
+    NODE_ENV = "production"
+
+# ============================================================================
+# PLUGINS
+# ============================================================================
+
+# Plugin para procesar formularios de Netlify (si se usa)
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+  # Nota: Este plugin es opcional, descomentar solo si se usa Next.js
+  # Para React + Vite puro, no es necesario
+
+# ============================================================================
+# EDGE FUNCTIONS (Opcional - para redirecciones avanzadas)
+# ============================================================================
+
+# Ejemplo de edge function para geolocalización o A/B testing
+# [[edge_functions]]
+#   function = "geo-redirect"
+#   path = "/"
