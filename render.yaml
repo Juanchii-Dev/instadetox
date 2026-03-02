@@ -1,0 +1,54 @@
+# Render Configuration for Instadetox Backend
+# This file defines the infrastructure as code for Render deployment
+
+services:
+  # Backend Web Service
+  - type: web
+    name: instadetox-api
+    runtime: node
+    plan: starter
+    region: ohio
+    branch: main
+    rootDir: .
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: HOST
+        value: 0.0.0.0
+      - key: CORS_ORIGIN
+        value: https://instadetox.netlify.app,https://instadetox.app
+      - key: SUPABASE_URL
+        sync: false # Set in Render dashboard
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false # Set in Render dashboard - CRITICAL: Service Role Key
+      - key: VITE_SUPABASE_ANON_KEY
+        sync: false # Set in Render dashboard
+    autoDeploy: true
+
+  # Optional: PostgreSQL Database (if not using Supabase)
+  # - type: pserv
+  #   name: instadetox-db
+  #   runtime: docker
+  #   plan: starter
+  #   dockerfilePath: ./Dockerfile.db
+  #   envVars:
+  #     - key: POSTGRES_DB
+  #       value: instadetox
+  #     - key: POSTGRES_USER
+  #       value: instadetox
+  #     - key: POSTGRES_PASSWORD
+  #       generateValue: true
+
+# Environment Groups (reusable across services)
+envVarGroups:
+  - name: instadetox-common
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info
