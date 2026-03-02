@@ -20,8 +20,13 @@ services:
         value: 10000
       - key: HOST
         value: 0.0.0.0
+      # IMPORTANTE: Actualizar con el dominio real de Netlify
+      # Ejemplo: https://instadetox.netlify.app,https://tu-app.netlify.app
       - key: CORS_ORIGIN
         value: https://instadetox.netlify.app,https://instadetox.app
+      # FRONTEND: URL del API backend (para referencia, se usa en cliente)
+      # Esta variable debe configurarse en el dashboard de Netlify como VITE_API_URL
+      # Ejemplo: https://instadetox-api.onrender.com
       - key: SUPABASE_URL
         sync: false # Set in Render dashboard
       - key: SUPABASE_SERVICE_ROLE_KEY
