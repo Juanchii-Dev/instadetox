@@ -8,7 +8,7 @@
     "dev:frontend": "npm --prefix client run dev",
     "dev:backend": "npm --prefix server run dev",
     "build": "npm --prefix client run build && npm --prefix server run build",
-    "render:build": "npm --prefix client install && npm run build",
+    "render:build": "npm --prefix client install --include=dev && npm run build",
     "start": "npm --prefix server run start",
     "check": "npm --prefix client run check && npm --prefix server run check && npm run test",
     "test": "npm --prefix client run test",
