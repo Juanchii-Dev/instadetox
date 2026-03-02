@@ -1,42 +1,52 @@
 # ============================================================================
 # INSTADETOX - NETLIFY CONFIGURATION
-# Configuración completa para deploy en Netlify
+# Configuración para deploy del frontend (React + Vite)
+# IMPORTANTE: Este proyecto usa un backend separado (Express/Node.js)
+# que debe deployarse en otro servicio (Railway, Render, VPS, etc.)
 # ============================================================================
 
 [build]
-  # Comando de build que compila cliente y servidor
-  command = "npm run build"
+  # Comando de build: Solo compilamos el cliente (frontend)
+  # El backend no puede correr en Netlify sin adaptarlo a Functions
+  command = "npm --prefix client install && npm --prefix client run build"
   
-  # Directorio de salida del build (Vite output)
-  publish = "dist/public"
+  # Directorio de salida del build (según client/vite.config.ts outDir)
+  # El cliente compila a ../dist/client desde la carpeta client/
+  # Desde root: dist/client/
+  publish = "dist/client"
   
-  # Directorio de funciones serverless (Netlify Functions)
-  functions = "netlify/functions"
+  # NOTA: Las funciones serverless están deshabilitadas porque
+  # el backend es Express tradicional, no serverless functions
+  # functions = "netlify/functions"
 
 [build.environment]
-  # Node.js version
+  # Node.js version - Usar LTS estable
   NODE_VERSION = "20"
   
   # NPM version
   NPM_VERSION = "10"
+  
+  # Asegurar que estemos en modo producción
+  NODE_ENV = "production"
 
 # ============================================================================
 # REDIRECTS - SPA Support
 # ============================================================================
 
+# IMPORTANTE: Las llamadas a /api deben apuntar a tu backend externo
+# Configura VITE_API_URL en las variables de entorno de Netlify
+# Ejemplo: VITE_API_URL=https://tu-api.railway.app
+
 # Redirección para SPA (Single Page Application)
 # Todas las rutas no encontradas van al index.html
+# Esto permite que React Router maneje el routing client-side
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
-  conditions = {Role = ["admin", "editor", "user"]}
-
-# Redirección específica para API (si se usa Netlify Functions)
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/api/:splat"
-  status = 200
+  
+# NOTA: Redirecciones de API removidas porque el backend es externo
+# El frontend debe usar la URL del backend configurada en VITE_API_URL
 
 # ============================================================================
 # HEADERS - Security Headers
@@ -128,17 +138,17 @@
 # PLUGINS
 # ============================================================================
 
-# Plugin para procesar formularios de Netlify (si se usa)
-[[plugins]]
-  package = "@netlify/plugin-nextjs"
-  # Nota: Este plugin es opcional, descomentar solo si se usa Next.js
-  # Para React + Vite puro, no es necesario
+# NOTA: No se usan plugins adicionales para React + Vite
+# El plugin de Next.js fue removido porque este proyecto usa React puro con Vite
+# [[plugins]]
+#   package = "@netlify/plugin-nextjs"
 
 # ============================================================================
-# EDGE FUNCTIONS (Opcional - para redirecciones avanzadas)
+# EDGE FUNCTIONS (Opcional - deshabilitado)
 # ============================================================================
 
-# Ejemplo de edge function para geolocalización o A/B testing
+# Las Edge Functions están deshabilitadas porque el backend es Express tradicional
+# Si necesitas redirecciones avanzadas, puedes habilitarlas más adelante
 # [[edge_functions]]
 #   function = "geo-redirect"
 #   path = "/"
