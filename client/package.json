@@ -3,9 +3,34 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node ../node_modules/vite/bin/vite.js --config vite.config.ts --host --port 5173 --force",
+    "dev": "vite --config vite.config.ts --host --port 5173 --force",
     "build": "vite build --config vite.config.ts",
-    "check": "node ../node_modules/typescript/bin/tsc -p tsconfig.json --noEmit",
-    "test": "node ../node_modules/vitest/vitest.mjs run"
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@replit/vite-plugin-cartographer": "^0.0.11",
+    "@replit/vite-plugin-runtime-error-modal": "^0.0.3",
+    "@replit/vite-plugin-shadcn-theme-json": "^0.0.4",
+    "@tailwindcss/typography": "^0.5.15",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/node": "20.16.11",
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.2",
+    "autoprefixer": "^10.4.20",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
+    "esbuild": "^0.25.0",
+    "jsdom": "^28.1.0",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.14",
+    "tsx": "^4.19.1",
+    "typescript": "5.6.3",
+    "vite": "^5.4.14",
+    "vite-tsconfig-paths": "^6.1.1",
+    "vitest": "^4.0.18"
   }
 }
