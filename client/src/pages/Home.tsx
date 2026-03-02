@@ -204,6 +204,8 @@ const Home = () => {
 
         const mapped = mappedPosts.map((p) => ({
           ...p,
+          likes_count: typeof p.likes_count === 'number' ? p.likes_count : (Number(p.likes_count) || 0),
+          comments_count: typeof p.comments_count === 'number' ? p.comments_count : (Number(p.comments_count) || 0),
           likedByMe: likedSet.has(p.id),
         }));
 

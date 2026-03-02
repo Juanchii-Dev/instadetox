@@ -3,6 +3,21 @@ import { supabase } from "@/lib/supabase";
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { useLocation } from "wouter";
 import { enqueueMutation } from "@/lib/outbox";
+// FASE 2: Bridge de sincronización legacy → MessageStore (modo backup)
+// @deprecated Este hook será reemplazado por MessageStore directo en FASE 3
+import {
+  syncConversationsFromLegacy,
+  syncMessagesFromLegacy,
+  syncMessageFromLegacy,
+  syncMessageStatusFromLegacy,
+  syncUnreadCountFromLegacy,
+  syncSelectedConversationFromLegacy,
+  syncPeerTypingFromLegacy,
+  syncPeerSeenAtFromLegacy,
+  syncMessageDeletedFromLegacy,
+  syncConversationUpdatedFromLegacy,
+} from "@/lib/messageStoreAdapter";
+import { saveSnapshotToIDB } from "@/lib/messageIDB";
 
 export interface ConversationRow {
   id: string;
@@ -139,6 +154,9 @@ export const useMessagesInbox = ({ userId }: UseMessagesInboxParams) => {
       setLocation("/direct/inbox");
     }
     setLocalSelectedConversationId(id);
+    
+    // FASE 1: Sincronizar selección al MessageStore
+    syncSelectedConversationFromLegacy(id);
   }, [setLocation]);
   const [messages, setMessages] = useState<InboxMessage[]>([]);
   const [loadingConversations, setLoadingConversations] = useState(true);
@@ -212,7 +230,7 @@ export const useMessagesInbox = ({ userId }: UseMessagesInboxParams) => {
       
       const now = new Date().toISOString();
       
-      // 1. Persistencia con manejo de errores
+      // 1. Persistencia conversation_reads
       try {
         const { error } = await supabase.from("conversation_reads").upsert(
           {
@@ -228,7 +246,18 @@ export const useMessagesInbox = ({ userId }: UseMessagesInboxParams) => {
         console.error("Fallo crítico al marcar como visto:", err);
       }
 
-      // 2. BROADCAST INSTANTÁNEO (con reintento si el canal está conectando)
+      // 2. FASE 2: Resetear unread_count en DB (atomático via trigger)
+      try {
+        await supabase.rpc("reset_unread_count", {
+          p_conversation_id: conversationId,
+          p_user_id: userId,
+        });
+      } catch (err) {
+        // No bloquear UX si falla - el valor eventualmente se corregirá
+        console.warn("Error al resetear unread_count (no crítico):", err);
+      }
+
+      // 3. BROADCAST INSTANTÁNEO (con reintento si el canal está conectando)
       const broadcastSeen = () => {
         if (typingChannelRef.current && typingChannelRef.current.state === "joined") {
           void typingChannelRef.current.send({
@@ -246,7 +275,11 @@ export const useMessagesInbox = ({ userId }: UseMessagesInboxParams) => {
         setTimeout(broadcastSeen, 500);
       }
 
+      // 4. Actualizar estado local inmediatamente (optimistic UI)
       setUnreadByConversation((prev) => ({ ...prev, [conversationId]: 0 }));
+      
+      // FASE 1: Sincronizar unread count al MessageStore
+      syncUnreadCountFromLegacy(conversationId, 0);
     },
     [userId],
   );
@@ -340,11 +373,11 @@ export const useMessagesInbox = ({ userId }: UseMessagesInboxParams) => {
 
       const { data: participantDetailRows } = await supabase
         .from("conversation_participants")
-        .select("conversation_id, user_id")
+        .select("conversation_id, user_id, unread_count")
         .in("conversation_id", conversationIds);
 
       const participantRowsByConversation = new Map<string, string[]>();
-      ((participantDetailRows ?? []) as Array<{ conversation_id: string; user_id: string }>).forEach((row) => {
+      ((participantDetailRows ?? []) as Array<{ conversation_id: string; user_id: string; unread_count?: number }>).forEach((row) => {
         const current = participantRowsByConversation.get(row.conversation_id) ?? [];
         participantRowsByConversation.set(row.conversation_id, [...current, row.user_id]);
       });
@@ -452,6 +485,18 @@ export const useMessagesInbox = ({ userId }: UseMessagesInboxParams) => {
 
       setConversations(nextConversations);
       setOtherParticipantCountByConversation(nextOtherParticipantCountByConversation);
+      
+      // FASE 1: Sincronizar al MessageStore (modo pasivo)
+      syncConversationsFromLegacy(nextConversations);
+      
+      // FASE 1: Guardar snapshot en IndexedDB (shadow mode)
+      const currentMessagesCache = messagesCacheRef.current;
+      
+      void saveSnapshotToIDB({
+        conversations: nextConversations,
+        messagesByConversation: currentMessagesCache,
+        lastSyncAt: new Date().toISOString(),
+      });
       setRequestConversationIds(nextRequestConversationIds);
       
       // Guardar participantes para broadcast de realtime
@@ -461,44 +506,31 @@ export const useMessagesInbox = ({ userId }: UseMessagesInboxParams) => {
       });
       participantsByConversationRef.current = participantIdsMap;
 
-      // Carga asíncrona de no leídos
-      if (typeof loadUnreadCounts !== "undefined") {
-        void loadUnreadCounts(nextConversations.map((row) => row.id));
+      // FASE 2: Construir unreadByConversation directamente de los datos cargados (O(1) vs RPC)
+      const unreadMap = ((participantDetailRows ?? []) as Array<{
+        conversation_id: string;
+        user_id: string;
+        unread_count?: number;
+      }>).reduce<Record<string, number>>((acc, row) => {
+        if (row.user_id === userId) {
+          acc[row.conversation_id] = row.unread_count ?? 0;
+        }
+        return acc;
+      }, {});
+      
+      // Si hay conversación seleccionada, forzar unread=0 (el usuario está viendo el chat)
+      if (selectedConversationIdRef.current) {
+        unreadMap[selectedConversationIdRef.current] = 0;
       }
+      
+      setUnreadByConversation(unreadMap);
     } finally {
       setLoadingConversations(false);
       hasBootstrappedRef.current = true;
     }
   }, [supabase, userId]);
- // Removido loadUnreadCounts de dependencias para evitar circularidad masiva si fuera necesario, pero loadUnreadCounts ya es estable.
-
-  const loadUnreadCounts = useCallback(
-    async (conversationIds: string[]) => {
-      if (!supabase || !userId || conversationIds.length === 0) {
-        setUnreadByConversation({});
-        return;
-      }
-
-      const { data } = await supabase.rpc("get_unread_counts", {
-        p_conversation_ids: conversationIds,
-      });
-
-      const next = ((data ?? []) as Array<{ conversation_id: string; unread_count: number }>).reduce<Record<string, number>>(
-        (acc, row) => {
-          acc[row.conversation_id] = Math.max(0, Number(row.unread_count ?? 0));
-          return acc;
-        },
-        {},
-      );
-
-      if (selectedConversationIdRef.current) {
-        next[selectedConversationIdRef.current] = 0;
-      }
-
-      setUnreadByConversation(next);
-    },
-    [userId],
-  );
+ // NOTA (FASE 2): loadUnreadCounts ELIMINADO - ahora usamos unread_count directo de conversation_participants
+ // La función get_unread_counts RPC puede ser deprecada en el futuro
 
   const loadPeerSeenAt = useCallback(
     async (conversationId: string) => {
@@ -551,6 +583,9 @@ export const useMessagesInbox = ({ userId }: UseMessagesInboxParams) => {
     // Deduplicación basada en ID (M12 - Anti-parpadeo)
     if (processedMessageIdsRef.current.has(msg.id)) return;
     processedMessageIdsRef.current.add(msg.id);
+    
+    // FASE 1: Sincronizar mensaje entrante al MessageStore
+    syncMessageFromLegacy(msg);
     
     // Limpieza periódica del Set para evitar leaks de memoria
     if (processedMessageIdsRef.current.size > 200) {
@@ -829,6 +864,10 @@ export const useMessagesInbox = ({ userId }: UseMessagesInboxParams) => {
         persistMessagesCache();
       }
       setMessages(merged);
+      
+      // FASE 1: Sincronizar mensajes al MessageStore
+      syncMessagesFromLegacy(conversation_id, merged);
+      
       setHasMoreMessages(dbMessages.length >= PAGE_SIZE);
 
       // --- FALLBACK DE VISTO (Mobile Stability) ---

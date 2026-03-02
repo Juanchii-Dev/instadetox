@@ -40,6 +40,7 @@ Thumbs.db
 .history/
 
 # Other
+*.md
 tash
 AGENTS.md
 fichaapp.png
@@ -56,9 +57,9 @@ docs/privacy-page.md
 docs/profile-page.md
 docs/profile-tech-debt-plan.md
 docs/right-panel.md
-AGENTS.md
 audit-db.cjs
 client/src/components/messages/estilo-chat.md
 .gitignore
 docs/modal,responder.md
 docs/messages-page-parity.md
+docs/ia_onboarding.md

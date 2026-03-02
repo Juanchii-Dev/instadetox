@@ -64,6 +64,7 @@
     "framer-motion": "^11.18.2",
     "helmet": "^8.1.0",
     "idb": "^8.0.3",
+    "immer": "^11.1.4",
     "input-otp": "^1.2.4",
     "lint": "^1.1.2",
     "lucide-react": "^0.453.0",
@@ -84,12 +85,16 @@
     "wouter": "^3.6.0",
     "ws": "^8.18.0",
     "zod": "^3.23.8",
-    "zod-validation-error": "^3.4.0"
+    "zod-validation-error": "^3.4.0",
+    "zustand": "^5.0.11"
   },
   "devDependencies": {
     "@replit/vite-plugin-cartographer": "^0.0.11",
     "@replit/vite-plugin-runtime-error-modal": "^0.0.3",
     "@tailwindcss/typography": "^0.5.15",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/connect-pg-simple": "^7.0.3",
     "@types/express": "4.17.21",
     "@types/express-session": "^1.18.0",
@@ -112,10 +117,7 @@
     "typescript": "5.6.3",
     "vite": "^5.4.14",
     "vite-tsconfig-paths": "^6.1.1",
-    "vitest": "^4.0.18",
-    "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^16.3.2",
-    "@testing-library/user-event": "^14.6.1"
+    "vitest": "^4.0.18"
   },
   "optionalDependencies": {
     "bufferutil": "^4.0.8"

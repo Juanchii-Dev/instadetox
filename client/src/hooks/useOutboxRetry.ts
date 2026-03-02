@@ -72,8 +72,8 @@ export const useOutboxRetry = (userId: string | undefined) => {
       } catch (err: any) {
         console.error(`[Outbox] Error reintentando mutacion ${mutation.id}:`, err);
         const newRetryCount = mutation.retryCount + 1;
-        await updateMutationStatus(mutation.id, { 
-          status: newRetryCount >= 5 ? 'failed' : 'pending',
+        await updateMutationStatus(mutation.id, {
+          status: newRetryCount >= 5 ? 'failed' : 'queued',
           retryCount: newRetryCount,
           lastError: err.message
         });

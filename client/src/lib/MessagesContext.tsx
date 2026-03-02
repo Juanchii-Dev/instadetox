@@ -1,7 +1,23 @@
-import React, { createContext, useContext, useState, useCallback, useEffect, useRef, useMemo } from "react";
-import { supabase } from "@/lib/supabase";
-import { generateUUID } from "@/lib/profileUtils";
+import React, { createContext, useContext } from "react";
 import { MessageRow, InboxMessage, Conversation, ReplyToPayload, useMessagesInbox } from "@/hooks/useMessagesInbox";
+
+/**
+ * ============================================================================
+ * FASE 2 – MessagesContext (Legacy Bridge)
+ * ============================================================================
+ * 
+ * @deprecated Este contexto es el puente legacy hacia el MessageStore.
+ * En FASE 3 será reemplazado por consumo directo desde MessageStore.
+ * 
+ * ACTUAL (FASE 2):
+ * - UI consume desde useInbox() → MessagesContext → useMessagesInbox
+ * - useMessagesInbox sincroniza al MessageStore (backup)
+ * 
+ * FUTURO (FASE 3):
+ * - UI consume desde React Query → MessageStore directamente
+ * - Este contexto será eliminado
+ * ============================================================================
+ */
 
 interface MessagesContextType {
   conversations: Conversation[];

@@ -73,8 +73,8 @@ export const useFeedPostRealtime = ({ supabaseClient, userId, setFeed }: UseFeed
             username: authorData.username,
             full_name: authorData.full_name,
             avatar_url: authorData.avatar_url,
-            likes_count: 0,
-            comments_count: 0,
+            likes_count: typeof newPost.likes_count === "number" ? newPost.likes_count : 0,
+            comments_count: typeof newPost.comments_count === "number" ? newPost.comments_count : 0,
             likedByMe: false
           };
 
